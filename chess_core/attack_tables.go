@@ -158,7 +158,7 @@ func maskPawnAttacks(side Color, sq Square) BitBoard {
 	var attacks BitBoard = 0
 	pawn := BitBoard(1) << sq
 
-	if side == White {
+	if side == Black {
 		if (pawn>>7)&notHFile != 0 {
 			attacks |= pawn >> 7
 		}
