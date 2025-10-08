@@ -29,7 +29,7 @@ func main() {
 		fmt.Println("Error parsing FEN:", err)
 		return
 	}
-	fmt.Print(gs)
+	fmt.Print(gs.ToFEN())
 
 	r, err := gs.MakeMove(White, SquareB6, SquareB8, 0)
 	if err != nil {

@@ -130,6 +130,77 @@ func (gs *GameState) FromFEN(fen string) error {
 	return nil
 }
 
+func (gs *GameState) ToFEN() string {
+	gs.mx.Lock()
+	defer gs.mx.Unlock()
+
+	bb := gs.BitBoards
+
+	var fenBoard strings.Builder
+	for rank := 7; rank >= 0; rank-- {
+		emptyCount := 0
+		for file := range 8 {
+			sq := rank*8 + file
+			piece := bb.GetPieceAt(Square(sq))
+
+			if piece == Empty {
+				emptyCount++
+			} else {
+				if emptyCount > 0 {
+					fenBoard.WriteString(fmt.Sprintf("%d", emptyCount))
+					emptyCount = 0
+				}
+				fenBoard.WriteByte(byte(piece))
+			}
+		}
+		if emptyCount > 0 {
+			fenBoard.WriteString(fmt.Sprintf("%d", emptyCount))
+		}
+		if rank > 0 {
+			fenBoard.WriteByte('/')
+		}
+	}
+
+	side := "w"
+	if gs.SideToMove == Black {
+		side = "b"
+	}
+
+	// Castling rights
+	castle := ""
+	if gs.CastlingRights&1 != 0 {
+		castle += "K"
+	}
+	if gs.CastlingRights&2 != 0 {
+		castle += "Q"
+	}
+	if gs.CastlingRights&4 != 0 {
+		castle += "k"
+	}
+	if gs.CastlingRights&8 != 0 {
+		castle += "q"
+	}
+	if castle == "" {
+		castle = "-"
+	}
+
+	//  En passant
+	enpassant := "-"
+	if gs.EnPassantSquare != NoEnPassant {
+		enpassant = SquareToCoordinates[gs.EnPassantSquare]
+	}
+
+	// Combine everything
+	return fmt.Sprintf("%s %s %s %s %d %d",
+		fenBoard.String(),
+		side,
+		castle,
+		enpassant,
+		gs.HalfmoveClock,
+		gs.FullmoveNumber,
+	)
+}
+
 func (gs *GameState) createMove(from, to Square, promo PieceType) (Move, error) {
 	pieceToMove := gs.BitBoards.GetPieceAt(from)
 	if pieceToMove == Empty {
