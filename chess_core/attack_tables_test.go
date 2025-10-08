@@ -1,4 +1,4 @@
-package main
+package chess_core
 
 import (
 	"testing"

@@ -1,6 +1,6 @@
 // move encoding and move list management
 
-package main
+package chess_core
 
 import (
 	"fmt"

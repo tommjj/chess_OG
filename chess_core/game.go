@@ -1,6 +1,6 @@
 // Game state representation for a chess engine
 
-package main
+package chess_core
 
 import (
 	"fmt"

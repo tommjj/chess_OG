@@ -9,7 +9,7 @@
 // - https://www.chessprogramming.org/Perft_Results
 // - implementation: https://github.com/maksimKorzh/bbc
 
-package main
+package chess_core
 
 import (
 	"fmt"

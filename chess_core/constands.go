@@ -1,6 +1,6 @@
 // constants used in the chess
 
-package main
+package chess_core
 
 // Color constants
 

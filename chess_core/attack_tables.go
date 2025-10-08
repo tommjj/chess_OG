@@ -10,7 +10,7 @@
 // The code initializes various masks and attack tables for pawns, knights, kings, rooks, and bishops.
 // It also includes functions to compute attacks based on the current board occupancy.
 
-package main
+package chess_core
 
 import "fmt"
 
