@@ -4,7 +4,6 @@ package chess_core
 
 import (
 	"fmt"
-	"sync"
 )
 
 // Move encoding
@@ -98,31 +97,15 @@ func (m Move) String() string {
 
 type MoveList []Move
 
-func (ml *MoveList) Add(move Move) {
-	*ml = append(*ml, move)
-}
-
-func (ml *MoveList) Clear() {
-	*ml = (*ml)[:0]
-}
-
-func (ml *MoveList) Len() int {
-	return len(*ml)
-}
-
-func (ml *MoveList) Get(index int) Move {
-	return (*ml)[index]
-}
-
-func (ml *MoveList) Set(index int, move Move) {
-	(*ml)[index] = move
-}
-
-// moveListPool is a sync.Pool to reuse MoveList slices
-var moveListPool = sync.Pool{
-	New: func() any {
-		return make(MoveList, 0, 220) // average max moves in a position is around 218
-	},
+func (ml *MoveList) Get(index int) Move       { return (*ml)[index] }
+func (ml *MoveList) Add(move Move)            { *ml = append(*ml, move) }
+func (ml *MoveList) Clear()                   { *ml = (*ml)[:0] }
+func (ml *MoveList) Len() int                 { return len(*ml) }
+func (ml *MoveList) Set(index int, move Move) { (*ml)[index] = move }
+func (ml *MoveList) Copy() MoveList {
+	moves := make(MoveList, len(*ml))
+	copy(moves, *ml)
+	return moves
 }
 
 func generatePseudoLegalMoves(bb *BitBoards, side Color, castling int, enPassantSquare Square, ml *MoveList) {
@@ -132,17 +115,6 @@ func generatePseudoLegalMoves(bb *BitBoards, side Color, castling int, enPassant
 	generateQueenMoves(bb, side, ml)
 	generateKingMoves(bb, side, castling, ml)
 }
-
-// // generateLegalMove generates all legal moves for the given position and side to move
-// func generateLegalMove(bb BitBoards, side Color, castling uint8, enPassantSquare Square) MoveList {
-// 	ml := moveListPool.Get().(MoveList)
-// 	ml.Clear()
-
-// 	// Generate pseudo-legal moves
-// 	generatePseudoLegalMoves(&bb, side, castling, enPassantSquare, ml)
-
-// 	// Filter out illegal moves
-// 	legalMoves := ml[:0]
 
 // generatePawnMoves
 func generatePawnMoves(bb *BitBoards, side Color, enPassantSquare Square, ml *MoveList) {

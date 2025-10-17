@@ -18,9 +18,19 @@ type GameState struct {
 	HalfmoveClock   int    // for fifty-move rule
 	FullmoveNumber  int    // starts at 1, increments after Black
 
-	State GameResult
+	startFen string
+	history  History
+
+	state GameResult
 
 	mx sync.Mutex
+}
+
+func NewGame() *GameState {
+	return &GameState{
+		BitBoards: &BitBoards{},
+		history:   make(History, 50),
+	}
 }
 
 func (gs *GameState) String() string {
@@ -36,14 +46,30 @@ func (gs *GameState) Copy() *GameState {
 		HalfmoveClock:   gs.HalfmoveClock,
 		FullmoveNumber:  gs.FullmoveNumber,
 
-		State: gs.State,
+		state: gs.state,
 	}
 	return newGS
+}
+
+func (gs *GameState) History() History {
+	gs.mx.Lock()
+	defer gs.mx.Unlock()
+
+	return gs.history.Copy()
 }
 
 func (gs *GameState) FromFEN(fen string) error {
 	gs.mx.Lock()
 	defer gs.mx.Unlock()
+
+	if gs.BitBoards == nil {
+		gs.BitBoards = &BitBoards{}
+	}
+
+	if gs.history == nil {
+		gs.history = make(History, 0, 50)
+	}
+	gs.history.Clear()
 
 	if err := gs.BitBoards.FromFEN(fen); err != nil {
 		return wrapError(err, "bitboards FromFEN")
@@ -63,11 +89,12 @@ func (gs *GameState) FromFEN(fen string) error {
 		return wrapError(ErrInvalidFEN, "arguments parsing in FromFEN")
 	}
 
-	if sideToMove == "w" {
+	switch sideToMove {
+	case "w":
 		gs.SideToMove = White
-	} else if sideToMove == "b" {
+	case "b":
 		gs.SideToMove = Black
-	} else {
+	default:
 		return wrapError(ErrInvalidSideToMove, "side to move in FromFEN")
 	}
 
@@ -126,6 +153,8 @@ func (gs *GameState) FromFEN(fen string) error {
 	if gs.BitBoards.BlackKing.Count() > 1 {
 		return wrapError(ErrMultipleKings, "black king in FromFEN")
 	}
+
+	gs.startFen = fen
 
 	return nil
 }
@@ -373,16 +402,20 @@ func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (Gam
 	gs.mx.Lock()
 	defer gs.mx.Unlock()
 
-	switch gs.State {
+	switch gs.state {
 	case ResultCheckmate:
-		return gs.State, ErrCheckmate
+		return gs.state, ErrCheckmate
 	case ResultStalemate:
-		return gs.State, ErrStalemate
+		return gs.state, ErrStalemate
 	case ResultDrawBy50Move:
-		return gs.State, ErrMatchEnd
+		return gs.state, ErrMatchEnd
 	case ResultInsufficientMaterial:
-		return gs.State, ErrInsufficientMaterial
+		return gs.state, ErrInsufficientMaterial
+	case ResultThreefoldRepetition:
+		return gs.state, ErrThreefoldRepetition
 	}
+
+	// handle validate move
 
 	if gs.SideToMove != side {
 		return -1, ErrIllegalMove
@@ -401,6 +434,13 @@ func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (Gam
 		return -1, ErrInvalidMove
 	}
 
+	// Set new state
+
+	// push history
+	currentHash := gs.computeZobristHash()
+	gs.history.Push(move, currentHash)
+
+	// set BitBoards
 	gs.BitBoards = bbs
 
 	if side == Black {
@@ -408,46 +448,54 @@ func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (Gam
 	}
 	gs.SideToMove = side.Opposite()
 
-	pieceType := ASCIIPieces[move.Piece()].Type()
-
+	// CastlingRights update
 	gs.CastlingRights &= CastlingRights[from]
 	gs.CastlingRights &= CastlingRights[to]
 
-	// Reset nếu có ăn hoặc di chuyển tốt
-	if move.IsCapture() || pieceType == Pawn {
+	// HalfmoveClock update
+	if move.IsCapture() || ASCIIPieces[move.Piece()].Type() == Pawn {
 		gs.HalfmoveClock = 0
 	} else {
 		gs.HalfmoveClock++
 	}
 
+	// EnPassantSquare update
 	if move.IsDoublePush() {
 		if side == White {
 			gs.EnPassantSquare = Square(move.To()) - 8
 		} else {
 			gs.EnPassantSquare = Square(move.To()) + 8
 		}
+	} else {
+		gs.EnPassantSquare = NoEnPassant
 	}
 
 	if IsKingAttacked(side.Opposite(), bbs) {
 		if !hasAnyLegalMove(bbs, side.Opposite(), gs.CastlingRights, gs.EnPassantSquare) {
-			gs.State = ResultCheckmate
+			gs.state = ResultCheckmate
 		}
 	} else {
 		if !hasAnyLegalMove(bbs, side.Opposite(), gs.CastlingRights, gs.EnPassantSquare) {
-			gs.State = ResultStalemate
+			gs.state = ResultStalemate
 		}
 	}
 
-	if gs.IsInsufficientMaterial() {
-		gs.State = ResultInsufficientMaterial
+	if gs.isInsufficientMaterial() {
+		gs.state = ResultInsufficientMaterial
+		return gs.state, ErrMatchEnd // bắt buộc hòa
+	}
+
+	if gs.isThreefoldRepetition() {
+		gs.state = ResultThreefoldRepetition
+		return gs.state, ErrMatchEnd // bắt buộc hòa
 	}
 
 	if gs.HalfmoveClock >= 150 { // 75 moves per side = 150 ply
-		gs.State = ResultDrawBy50Move
-		return gs.State, ErrMatchEnd // bắt buộc hòa
+		gs.state = ResultDrawBy50Move
+		return gs.state, ErrMatchEnd // bắt buộc hòa
 	}
 
-	return gs.State, nil
+	return gs.state, nil
 }
 
 func (gs *GameState) MakeDrawBy50Move() error {
@@ -460,25 +508,17 @@ func (gs *GameState) MakeDrawBy50Move() error {
 	}
 
 	// chỉ có thể yêu cầu hòa khi ván chưa kết thúc
-	switch gs.State {
+	switch gs.state {
 	case ResultCheckmate, ResultStalemate, ResultDrawBy50Move, ResultInsufficientMaterial:
 		return ErrMatchEnd
 	}
 
 	// đặt trạng thái hòa
-	gs.State = ResultDrawBy50Move
+	gs.state = ResultDrawBy50Move
 	return nil
 }
 
-func (gs *GameState) wouldBeInCheck(move Move) bool {
-	temp := *gs.BitBoards
-
-	makeUnsafeMove(&temp, move)
-
-	return IsKingAttacked(move.Side(), &temp)
-}
-
-func (gs *GameState) IsInsufficientMaterial() bool {
+func (gs *GameState) isInsufficientMaterial() bool {
 	bb := gs.BitBoards
 
 	// Đếm quân mỗi bên
@@ -515,11 +555,39 @@ func (gs *GameState) IsInsufficientMaterial() bool {
 	return false
 }
 
+func (gs *GameState) isThreefoldRepetition() bool {
+	currentHash := computeZobristHash(gs.BitBoards, gs.SideToMove, gs.EnPassantSquare, gs.CastlingRights)
+	count := 0
+
+	// chỉ cần xét các thế trong phạm vi halfmoveClock nước gần nhất
+	limit := max(len(gs.history)-gs.HalfmoveClock, 0)
+
+	for i := len(gs.history) - 1; i >= limit; i-- {
+		if gs.history[i].Hash == currentHash {
+			count++
+			if count >= 2 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// get winner player
 func (gs *GameState) Winner() (Color, bool) {
-	if gs.State == ResultCheckmate {
+	if gs.state == ResultCheckmate {
 		return gs.SideToMove.Opposite(), true
 	}
 	return None, false
+}
+
+// get current game state
+func (gs *GameState) State() GameResult {
+	return gs.state
+}
+
+func (gs *GameState) computeZobristHash() uint64 {
+	return computeZobristHash(gs.BitBoards, gs.SideToMove, gs.EnPassantSquare, gs.CastlingRights)
 }
 
 // kiểm tra xem 2 tượng có cùng màu ô không
@@ -527,4 +595,44 @@ func sameBishopColor(whiteBishop, blackBishop BitBoard) bool {
 	whiteSq := whiteBishop.LeastSignificantBit()
 	blackSq := blackBishop.LeastSignificantBit()
 	return (whiteSq+blackSq)%2 == 0 // cùng màu ô
+}
+
+type MoveHistory struct {
+	Move Move
+	Hash uint64
+}
+
+type History []MoveHistory
+
+func (h *History) Clear() {
+	*h = (*h)[:0]
+}
+
+func (h *History) Push(move Move, hash uint64) {
+	*h = append(*h, MoveHistory{Move: move, Hash: hash})
+}
+
+func (h *History) Pop() MoveHistory {
+	if len(*h) == 0 {
+		return MoveHistory{}
+	}
+	last := (*h)[len(*h)-1]
+	*h = (*h)[:len(*h)-1]
+	return last
+}
+
+func (h *History) CountHash(hash uint64) int {
+	count := 0
+	for _, entry := range *h {
+		if entry.Hash == hash {
+			count++
+		}
+	}
+	return count
+}
+
+func (ml *History) Copy() History {
+	moves := make(History, len(*ml))
+	copy(moves, *ml)
+	return moves
 }

@@ -372,6 +372,7 @@ const (
 	ResultStalemate
 	ResultDrawBy50Move
 	ResultInsufficientMaterial
+	ResultThreefoldRepetition
 )
 
 func (g GameResult) String() string {
@@ -386,6 +387,8 @@ func (g GameResult) String() string {
 		return "Result Draw By 50 Move"
 	case ResultInsufficientMaterial:
 		return "Result Insufficient Material"
+	case ResultThreefoldRepetition:
+		return "Result Threefold Repetition"
 	default:
 		return "Unknown Result"
 	}

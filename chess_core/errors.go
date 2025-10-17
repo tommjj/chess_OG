@@ -27,6 +27,7 @@ var (
 	ErrMatchEnd  = errors.New("the match ended")
 
 	ErrInsufficientMaterial = errors.New("insufficient material to continue the game")
+	ErrThreefoldRepetition  = errors.New("game over because of three repetitions")
 
 	ErrInvalidPromotion = errors.New("invalid promotion")
 )
