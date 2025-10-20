@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Go WebSocket Test Client</title>
+        <style>
+            body {
+                font-family: sans-serif;
+            }
+            button {
+                padding: 10px 15px;
+                margin: 5px;
+                cursor: pointer;
+            }
+            #output {
+                background: #eee;
+                padding: 10px;
+                border: 1px solid #ccc;
+                max-height: 300px;
+                overflow-y: scroll;
+                white-space: pre-wrap;
+            }
+            .connected {
+                color: green;
+                font-weight: bold;
+            }
+            .disconnected {
+                color: red;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Go WebSocket Server Test</h1>
+        <p>
+            Status: <span id="status" class="disconnected">Disconnected</span>
+        </p>
+
+        <div id="controls">
+            <button id="connectBtn" onclick="connect()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>
+                Disconnect
+            </button>
+            <hr />
+            <button id="sendHelloBtn" onclick="sendHelloEvent()" disabled>
+                Send "hello" Event
+            </button>
+        </div>
+
+        <h2>Console Output</h2>
+        <pre id="output"></pre>
+
+        <script>
+            const SOCKET_URL = `ws://localhost:8080/ws`;
+            let ws = null;
+
+            // References to DOM elements
+            const statusElement = document.getElementById('status');
+            const outputElement = document.getElementById('output');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const sendHelloBtn = document.getElementById('sendHelloBtn');
+
+            // Hàm ghi log ra giao diện
+            function log(message, isError = false) {
+                outputElement.textContent += `\n[${new Date().toLocaleTimeString()}] ${
+                    isError ? '❌ ERROR: ' : ''
+                }${message}`;
+                outputElement.scrollTop = outputElement.scrollHeight;
+            }
+
+            // Cập nhật trạng thái nút
+            function updateButtons(isConnected) {
+                connectBtn.disabled = isConnected;
+                disconnectBtn.disabled = !isConnected;
+                sendHelloBtn.disabled = !isConnected;
+                statusElement.className = isConnected
+                    ? 'connected'
+                    : 'disconnected';
+            }
+
+            // Hàm kết nối
+            function connect() {
+                if (ws) {
+                    log('Already connected.');
+                    return;
+                }
+
+                ws = new WebSocket(SOCKET_URL);
+                statusElement.textContent = 'Connecting...';
+
+                ws.onopen = (event) => {
+                    statusElement.textContent = 'Connected';
+                    log('Connection established successfully.');
+                    updateButtons(true);
+                };
+
+                ws.onmessage = (event) => {
+                    log(`Received message: ${event.data}`);
+                };
+
+                ws.onerror = (error) => {
+                    log(`WebSocket Error. See console for details.`, true);
+                    statusElement.textContent = 'Error';
+                };
+
+                ws.onclose = (event) => {
+                    statusElement.textContent = `Disconnected (Code: ${event.code})`;
+                    log(`Connection closed. Clean: ${event.wasClean}`);
+                    ws = null;
+                    updateButtons(false);
+                };
+            }
+
+            // Hàm gửi tin nhắn "hello"
+            function sendHelloEvent() {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    // Định dạng JSON phải khớp với cấu trúc mà server Go mong đợi
+                    const message = {
+                        event: 'hello', // Tên event được server đăng ký
+                        data: {
+                            timestamp: new Date().toISOString(),
+                            source: 'button_click',
+                        },
+                    };
+
+                    const jsonString = JSON.stringify(message);
+                    ws.send(jsonString);
+                    log(`Sent 'hello' event: ${jsonString}`);
+                } else {
+                    log('Cannot send message. WebSocket is not open.', true);
+                }
+            }
+
+            // Hàm ngắt kết nối
+            function disconnect() {
+                if (ws) {
+                    ws.close(1000, 'Client initiated disconnect');
+                }
+            }
+        </script>
+    </body>
+</html>
