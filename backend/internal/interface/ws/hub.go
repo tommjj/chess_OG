@@ -9,33 +9,53 @@ import (
 
 type ID uuid.UUID
 
-// Emiter là interface định nghĩa một phương thức Emit.
-type Emiter interface {
-	// Emit gửi dữ liệu với tên sự kiện, đồng thời kiểm tra context để hủy bỏ (cancel)
-	// hoặc giới hạn thời gian (timeout) nếu cần.
+func (id ID) String() string {
+	return uuid.UUID(id).String()
+}
+
+// Emitter create a Emit for connections
+type Emitter interface {
+	// Emit a event to all connections
 	Emit(ctx context.Context, event string, data any) error
 }
 
-type WSHub struct {
+type NilEmitter struct{}
+
+func (n *NilEmitter) Emit(ctx context.Context, event string, data any) error { return nil }
+
+// Omitter create a Emit that omit a connection
+type Omitter interface {
+	// Omit a event to all connections except the omit connection
+	Omit(ctx context.Context, event string, data any) error
+}
+
+type NilOmitter struct{}
+
+func (n *NilOmitter) Omit(ctx context.Context, event string, data any) error { return nil }
+
+// hub manages websocket connections and rooms.
+type hub struct {
 	conns   map[ID]*Connection
 	connsMu sync.RWMutex
 
-	rooms   map[string]*Room
+	rooms   map[string]*room
 	roomsMu sync.RWMutex
 }
 
-func NewWSHub() *WSHub {
-	return &WSHub{
+func NewWSHub() *hub {
+	return &hub{
 		conns: make(map[ID]*Connection),
-		rooms: make(map[string]*Room),
+		rooms: make(map[string]*room),
 	}
 }
 
-func (h *WSHub) addConn(conn *Connection) {
+// addConn add new conn
+func (h *hub) addConn(conn *Connection) {
 	h.conns[conn.ID()] = conn
 }
 
-func (h *WSHub) AddConn(conn *Connection) {
+// AddConn add new conn
+func (h *hub) AddConn(conn *Connection) {
 	h.connsMu.Lock()
 	defer h.connsMu.Unlock()
 
@@ -43,28 +63,30 @@ func (h *WSHub) AddConn(conn *Connection) {
 }
 
 // Remove conn by id
-func (h *WSHub) delConn(id ID) {
+func (h *hub) delConn(id ID) {
 	delete(h.conns, id)
 }
 
-func (h *WSHub) leaveAllRoom(conn *Connection) {
+// leaveAllRoom makes the connection leave all joined rooms.
+func (h *hub) leaveAllRoom(conn *Connection) {
 	roomNames := conn.JoinedRooms()
 
-	h.connsMu.Lock()
-	defer h.connsMu.Unlock()
+	h.roomsMu.Lock()
+	defer h.roomsMu.Unlock()
 
 	for _, name := range roomNames {
 		h.leaveRoom(name, conn)
 	}
 }
 
-func (h *WSHub) LeaveAllRoom(conn *Connection) {
+// LeaveAllRoom makes the connection leave all joined rooms.
+func (h *hub) LeaveAllRoom(conn *Connection) {
 	h.leaveAllRoom(conn)
 }
 
 // Remove conn
 // leave all rooms before remove
-func (h *WSHub) DelConn(conn *Connection) {
+func (h *hub) DelConn(conn *Connection) {
 	h.connsMu.Lock()
 	defer h.connsMu.Unlock()
 
@@ -73,7 +95,8 @@ func (h *WSHub) DelConn(conn *Connection) {
 	h.delConn(conn.ID())
 }
 
-func (h *WSHub) joinRoom(name string, conn *Connection) {
+// joinRoom makes the connection join the specified room.
+func (h *hub) joinRoom(name string, conn *Connection) {
 	room, ok := h.rooms[name]
 	if !ok {
 		room = NewRoom()
@@ -84,28 +107,89 @@ func (h *WSHub) joinRoom(name string, conn *Connection) {
 	conn.addJoinedRoom(name)
 }
 
-func (h *WSHub) JoinRoom(name string, conn *Connection) {
+// JoinRoom makes the connection join the specified room.
+func (h *hub) JoinRoom(name string, conn *Connection) {
 	h.roomsMu.Lock()
 	defer h.roomsMu.Unlock()
 
 	h.joinRoom(name, conn)
 }
 
-func (h *WSHub) leaveRoom(name string, conn *Connection) {
+// leaveRoom makes the connection leave the specified room.
+func (h *hub) leaveRoom(name string, conn *Connection) {
 	room, ok := h.rooms[name]
 	if !ok {
 		return
 	}
 
 	room.Remove(conn)
+	conn.removeJoinedRoom(name)
 	if room.IsIsEmpty() {
 		delete(h.rooms, name)
 	}
 }
 
-func (h *WSHub) LeaveRoom(name string, conn *Connection) {
+// LeaveRoom makes the connection leave the specified room.
+func (h *hub) LeaveRoom(name string, conn *Connection) {
 	h.roomsMu.Lock()
 	defer h.roomsMu.Unlock()
 
 	h.leaveRoom(name, conn)
+}
+
+// ToRoom returns an Emitter that sends events to all connections in the specified room.
+func (h *hub) ToRoom(name string) Emitter {
+	h.roomsMu.RLock()
+	defer h.roomsMu.RUnlock()
+
+	room, ok := h.rooms[name]
+	if !ok {
+		return &NilEmitter{}
+	}
+
+	return &RoomEmitter{
+		room: room,
+	}
+}
+
+// ToRoomOmit returns an Omitter that sends events to all connections in the specified room except the specified connection.
+func (h *hub) ToRoomOmit(name string, omitConn *Connection) Omitter {
+	h.roomsMu.RLock()
+	defer h.roomsMu.RUnlock()
+
+	room, ok := h.rooms[name]
+	if !ok {
+		return &NilOmitter{}
+	}
+
+	return &RoomOmitter{
+		room: room,
+		conn: omitConn,
+	}
+}
+
+func (h *hub) ToConn(id ID) Emitter {
+	h.connsMu.RLock()
+	defer h.connsMu.RUnlock()
+
+	conn, ok := h.conns[id]
+	if !ok {
+		return &NilEmitter{}
+	}
+
+	return &ConnEmitter{
+		conn: conn,
+	}
+}
+
+func (h *hub) Size() int {
+	h.connsMu.RLock()
+	defer h.connsMu.RUnlock()
+	return len(h.conns)
+}
+
+func (h *hub) RoomsSize() int {
+	h.roomsMu.RLock()
+	defer h.roomsMu.RUnlock()
+	return len(h.rooms)
 }

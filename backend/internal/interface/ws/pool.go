@@ -13,6 +13,7 @@ func acquireContext() *Context {
 	ctx.Context = nil
 	ctx.Conn = nil
 	ctx.Hub = nil
+	ctx.Payload = nil
 	return ctx
 }
 
@@ -20,17 +21,18 @@ func releaseContext(ctx *Context) {
 	ctx.Context = nil
 	ctx.Conn = nil
 	ctx.Hub = nil
+	ctx.Payload = nil
 	contextPool.Put(ctx)
 }
 
+// DefaultConnSliceLen is the default length of the connection slice pool
 var DefaultConnSliceLen = 16
+
+// connSlicePool is a pool of []*Connection slices to reduce allocations
 var connSlicePool = sync.Pool{
-	// Hàm New được gọi khi Pool trống.
-	// Thường trả về nil hoặc slice rỗng, chúng ta sẽ cấp phát
-	// khi lấy ra (Get) để kiểm soát dung lượng (capacity).
 	New: func() any {
 		slice := make([]*Connection, 0, DefaultConnSliceLen)
-		return &slice // luôn lưu *slice trong Pool
+		return &slice
 	},
 }
 

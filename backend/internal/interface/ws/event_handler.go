@@ -1,11 +1,10 @@
 package ws
 
 import (
-	"encoding/json"
 	"sync"
 )
 
-type HandleFunc func(ctx *Context, data json.RawMessage) error
+type HandleFunc func(ctx *Context)
 
 type EventHandler struct {
 	handlers map[string]HandleFunc

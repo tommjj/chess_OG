@@ -1,25 +1,26 @@
 package ws
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 	"golang.org/x/time/rate"
 )
 
 type Connection struct {
 	*websocket.Conn
 
-	//
-	id    ID
-	store sync.Map
+	id    ID       // unique identifier of the connection
+	store sync.Map // key-value store for connection-specific data
 
-	// rooms joined name
+	// joined rooms
 	rooms  map[string]struct{}
 	roomMu sync.Mutex
 
-	rateLimitBucket *rate.Limiter
+	rateLimitBucket *rate.Limiter // rate limiter for the connection
 }
 
 func NewWSConnection(id ID, conn *websocket.Conn) Connection {
@@ -30,6 +31,8 @@ func NewWSConnection(id ID, conn *websocket.Conn) Connection {
 		id:              id,
 		store:           sync.Map{},
 		rateLimitBucket: limiter,
+
+		rooms: make(map[string]struct{}),
 	}
 }
 
@@ -101,4 +104,30 @@ func (c *Connection) JoinedRooms() []string {
 
 func (c *Connection) Allow() bool {
 	return c.rateLimitBucket.Allow()
+}
+
+func (c *Connection) SetLimit(r rate.Limit, b int) {
+	c.rateLimitBucket.SetLimit(r)
+	c.rateLimitBucket.SetBurst(b)
+}
+
+func (c *Connection) Limit() (rate.Limit, int) {
+	return c.rateLimitBucket.Limit(), c.rateLimitBucket.Burst()
+}
+
+func (c *Connection) Emit(ctx context.Context, event string, payload any) error {
+	mess := Message{
+		Event:   event,
+		Payload: payload,
+	}
+
+	return wsjson.Write(ctx, c.Conn, mess)
+}
+
+type ConnEmitter struct {
+	conn *Connection
+}
+
+func (ce *ConnEmitter) Emit(ctx context.Context, event string, payload any) error {
+	return ce.conn.Emit(ctx, event, payload)
 }

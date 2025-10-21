@@ -1,3 +1,5 @@
+// Right now ws using JSON for message encoding/decoding
+// In the future, we can add other encoding formats like text-based or binary for better performance
 package ws
 
 import "encoding/json"
