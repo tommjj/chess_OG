@@ -1,3 +1,7 @@
+// Package ws implements websocket handler and connection management.
+// It provides a way to handle websocket connections, manage rooms, and emit events to connections.
+// It uses the github.com/coder/websocket package for websocket handling.
+
 package ws
 
 import (
@@ -18,7 +22,6 @@ type OptionsFunc func(*Handler)
 type MiddlewareFunc func(conn *Connection, r *http.Request) error
 
 // Handler handles websocket connections and dispatches events to the appropriate handlers.
-// Todo: add logging and error handling.
 type Handler struct {
 	hub          *hub
 	eventHandler *EventHandler
@@ -171,7 +174,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.onConnect != nil {
 		c, cal := h.newContext(ctx, &conn)
 		h.onConnect(c)
-		defer cal()
+		cal()
 	}
 
 	// start read loop this will block until connection is closed
@@ -181,7 +184,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.onDisconnect != nil {
 		c, cal := h.newContext(ctx, &conn)
 		h.onDisconnect(c)
-		defer cal()
+		cal()
 	}
 
 	// close websocket connection

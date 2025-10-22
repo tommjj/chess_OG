@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+// ConnError represents an error related to a specific connection.
+// It includes the connection ID, the operation being performed, and the underlying error.
 type ConnError struct {
 	ConnID ID
 	Op     string
