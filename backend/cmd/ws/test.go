@@ -2,15 +2,24 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
+	"log"
 	"net/http"
 
 	"github.com/tommjj/chess_OG/backend/internal/interface/ws"
+	"github.com/tommjj/chess_OG/backend/internal/web"
 )
 
 func main() {
+	sub, err := fs.Sub(web.StaticFiles, ".")
+	if err != nil {
+		log.Fatalf("failed to get sub FS: %v", err)
+	}
+
 	server := http.NewServeMux()
 
-	fs := http.FileServer(http.Dir("./static"))
+	httpFS := http.FS(sub)
+	fs := http.FileServer(httpFS)
 
 	hub := ws.NewWSHub()
 	eventHandler := ws.NewEventHandler()
