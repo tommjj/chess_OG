@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/fs"
-	"log"
 	"net/http"
 
 	"github.com/tommjj/chess_OG/backend/internal/interface/ws"
@@ -11,17 +9,9 @@ import (
 )
 
 func main() {
-	sub, err := fs.Sub(web.StaticFiles, ".")
-	if err != nil {
-		log.Fatalf("failed to get sub FS: %v", err)
-	}
-
 	server := http.NewServeMux()
+	fs := http.FileServer(http.FS(web.StaticFS))
 
-	httpFS := http.FS(sub)
-	fs := http.FileServer(httpFS)
-
-	hub := ws.NewWSHub()
 	eventHandler := ws.NewEventHandler()
 
 	eventHandler.Register("hello", func(ctx *ws.Context) {
@@ -62,7 +52,7 @@ func main() {
 		fmt.Println("Received message from", ctx.Conn.ID().String(), ":", msg.Mess)
 	})
 
-	handler := ws.NewHandler(hub, eventHandler, ws.WithOnConnect(func(ctx *ws.Context) {
+	handler := ws.NewHandler(ws.NewWSHub(), eventHandler, ws.WithOnConnect(func(ctx *ws.Context) {
 		fmt.Println("New connection established with ID:", ctx.Conn.ID())
 	}))
 

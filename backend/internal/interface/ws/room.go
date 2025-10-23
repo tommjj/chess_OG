@@ -1,4 +1,5 @@
 // Room management for WebSocket connections.
+
 package ws
 
 import (

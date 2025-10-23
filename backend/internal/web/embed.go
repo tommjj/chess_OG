@@ -1,6 +1,23 @@
 package web
 
-import "embed"
+// Embed file
 
-//go:embed **.html
-var StaticFiles embed.FS
+import (
+	"embed"
+	"io/fs"
+)
+
+//go:embed static/**
+var embeddedFS embed.FS
+
+var (
+	StaticFS = mustSub("static")
+)
+
+func mustSub(path string) fs.FS {
+	sub, err := fs.Sub(embeddedFS, path)
+	if err != nil {
+		panic(err)
+	}
+	return sub
+}

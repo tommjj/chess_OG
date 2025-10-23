@@ -1,5 +1,6 @@
 // EventHandler manages WebSocket event handlers.
 // It allows registering, retrieving, unregistering, and clearing event handlers.
+
 package ws
 
 import (

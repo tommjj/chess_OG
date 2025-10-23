@@ -1,7 +1,12 @@
-// Package ws implements websocket handler and connection management.
-// It provides a way to handle websocket connections, manage rooms, and emit events to connections.
-// It uses the github.com/coder/websocket package for websocket handling.
-
+// Package ws (websocket) implements the core logic for managing WebSocket connections and
+// handling real-time communication for the backend application.
+// It leverages the github.com/coder/websocket package for efficient, low-level WebSocket protocol handling.
+//
+// Key Features and Responsibilities
+//   - WebSocket Endpoint Handling
+//   - Connection Management and Lifecycles
+//   - Structured Message Processing (JSON)
+//   - Hub and Room Grouping
 package ws
 
 import (
@@ -148,41 +153,40 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn := NewWSConnection(connID, wsConn)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	conn := NewWSConnection(ctx, connID, wsConn)
 
 	// run middlewares
 	for _, m := range h.middlewares {
-		if err := m(&conn, r); err != nil {
+		if err := m(conn, r); err != nil {
 			wsConn.Close(websocket.StatusPolicyViolation, "middleware error:"+err.Error())
 			return
 		}
 	}
 
 	// add connection to hub
-	h.hub.AddConn(&conn)
-	defer h.hub.DelConn(&conn)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	h.hub.AddConn(conn)
+	defer h.hub.DelConn(conn)
 
 	// start health ping goroutine
 	if h.healthInterval > 0 {
-		go h.healthPing(ctx, &conn)
+		go h.healthPing(ctx, conn)
 	}
 
 	// call onConnect handler
 	if h.onConnect != nil {
-		c, cal := h.newContext(ctx, &conn)
+		c, cal := h.newContext(ctx, conn)
 		h.onConnect(c)
 		cal()
 	}
 
 	// start read loop this will block until connection is closed
-	h.runReadLoop(ctx, &conn)
+	h.runReadLoop(ctx, conn)
 
 	// call onDisconnect handler
 	if h.onDisconnect != nil {
-		c, cal := h.newContext(ctx, &conn)
+		c, cal := h.newContext(ctx, conn)
 		h.onDisconnect(c)
 		cal()
 	}

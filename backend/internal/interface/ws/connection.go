@@ -13,6 +13,8 @@ import (
 type Connection struct {
 	*websocket.Conn
 
+	ctx context.Context
+
 	id    ID       // unique identifier of the connection
 	store sync.Map // key-value store for connection-specific data
 
@@ -23,11 +25,12 @@ type Connection struct {
 	rateLimitBucket *rate.Limiter // rate limiter for the connection
 }
 
-func NewWSConnection(id ID, conn *websocket.Conn) Connection {
+func NewWSConnection(ctx context.Context, id ID, conn *websocket.Conn) *Connection {
 	limiter := rate.NewLimiter(5, 10)
 
-	return Connection{
+	return &Connection{
 		Conn:            conn,
+		ctx:             ctx,
 		id:              id,
 		store:           sync.Map{},
 		rateLimitBucket: limiter,
@@ -66,6 +69,10 @@ func (c *Connection) Range(f func(key any, value any) bool) {
 
 func (c *Connection) ID() ID {
 	return c.id
+}
+
+func (c *Connection) Ctx() context.Context {
+	return c.ctx
 }
 
 func (c *Connection) addJoinedRoom(name string) {
