@@ -7,6 +7,20 @@ import (
 	"github.com/coder/websocket"
 )
 
+// Context represents the context of a WebSocket event.
+// Each time an event is triggered (e.g., "connect", "message", "disconnect"),
+// a new context is created to contain information related to the connection and payload.
+//
+// Providing context:
+//   - the original context.Context to track the lifecycle of the event.
+//   - Reference to the active Connection.
+//   - Reference to the Hub (manager and connection).
+//   - Payload containing the event
+//
+// Note:
+//
+// It is not recommended to keep the Context after the event callback has finished, as it can be reused
+// or extracted by the system. If you need to use the data later, copy it beforehand.
 type Context struct {
 	context.Context
 
@@ -109,4 +123,13 @@ func (c *Context) Range(f func(key any, value any) bool) {
 // BindJSON unmarshals the JSON payload of the context into the provided variable.
 func (c *Context) BindJSON(v any) error {
 	return json.Unmarshal(c.Payload, v)
+}
+
+// Clone a new context
+func (c *Context) Clone() *Context {
+	return &Context{
+		Conn:    c.Conn,
+		Hub:     c.Hub,
+		Payload: c.Payload,
+	}
 }

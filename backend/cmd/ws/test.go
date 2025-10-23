@@ -55,9 +55,12 @@ func main() {
 	handler := ws.NewHandler(ws.NewWSHub(), eventHandler, ws.WithOnConnect(func(ctx *ws.Context) {
 		fmt.Println("New connection established with ID:", ctx.Conn.ID())
 
+		copyCtx := ctx.Clone()
+
 		go func() {
-			<-ctx.ConnCtx().Done()
-			fmt.Println("connection close with ID:", ctx.Conn.ID())
+			<-copyCtx.ConnCtx().Done()
+			fmt.Println("Connection close with ID:", ctx.Conn.ID())
+
 		}()
 	}))
 
