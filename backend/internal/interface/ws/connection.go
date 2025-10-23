@@ -13,7 +13,7 @@ import (
 type Connection struct {
 	*websocket.Conn
 
-	ctx context.Context
+	ctx context.Context // Connection ctx done when connection closed
 
 	id    ID       // unique identifier of the connection
 	store sync.Map // key-value store for connection-specific data
@@ -71,6 +71,7 @@ func (c *Connection) ID() ID {
 	return c.id
 }
 
+// Return connection ctx
 func (c *Connection) Ctx() context.Context {
 	return c.ctx
 }

@@ -12,20 +12,20 @@ import (
 	"github.com/coder/websocket"
 )
 
-// room represents a group of connections.
-type room struct {
+// Room represents a group of connections.
+type Room struct {
 	conns   map[*Connection]struct{}
 	connsMu sync.RWMutex
 }
 
-func NewRoom() *room {
-	return &room{
+func NewRoom() *Room {
+	return &Room{
 		conns: make(map[*Connection]struct{}),
 	}
 }
 
 // Add new conn
-func (r *room) Add(conn *Connection) {
+func (r *Room) Add(conn *Connection) {
 	r.connsMu.Lock()
 	defer r.connsMu.Unlock()
 
@@ -33,7 +33,7 @@ func (r *room) Add(conn *Connection) {
 }
 
 // Remove remove conn
-func (r *room) Remove(conn *Connection) {
+func (r *Room) Remove(conn *Connection) {
 	r.connsMu.Lock()
 	defer r.connsMu.Unlock()
 
@@ -41,14 +41,14 @@ func (r *room) Remove(conn *Connection) {
 }
 
 // Size get room size
-func (r *room) Size() int {
+func (r *Room) Size() int {
 	r.connsMu.RLock()
 	defer r.connsMu.RUnlock()
 	return len(r.conns)
 }
 
 // IsIsEmpty check if room is empty
-func (r *room) IsIsEmpty() bool {
+func (r *Room) IsIsEmpty() bool {
 	r.connsMu.RLock()
 	defer r.connsMu.RUnlock()
 	return len(r.conns) == 0
@@ -56,7 +56,7 @@ func (r *room) IsIsEmpty() bool {
 
 // RoomEmitter create a Emit for room
 type RoomEmitter struct {
-	room *room
+	room *Room
 }
 
 // Emit a event to all connections in the room
@@ -128,7 +128,7 @@ func (r *RoomEmitter) Emit(ctx context.Context, event string, payload any) error
 }
 
 type RoomOmitter struct {
-	room *room
+	room *Room
 	conn *Connection
 }
 

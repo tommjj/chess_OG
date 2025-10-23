@@ -11,7 +11,7 @@ type Context struct {
 	context.Context
 
 	Conn *Connection
-	Hub  *hub
+	Hub  *Hub
 
 	Payload json.RawMessage
 }
@@ -69,6 +69,11 @@ func (c *Context) Close(reason string) error {
 // ID returns the unique identifier of the connection associated with this context.
 func (c *Context) ID() ID {
 	return c.Conn.ID()
+}
+
+// Return connection context
+func (c *Context) ConnCtx() context.Context {
+	return c.Conn.Ctx()
 }
 
 // Set sets a key-value pair in the connection's store.

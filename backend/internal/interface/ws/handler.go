@@ -28,7 +28,7 @@ type MiddlewareFunc func(conn *Connection, r *http.Request) error
 
 // Handler handles websocket connections and dispatches events to the appropriate handlers.
 type Handler struct {
-	hub          *hub
+	hub          *Hub
 	eventHandler *EventHandler
 
 	// optional fields
@@ -46,7 +46,7 @@ type Handler struct {
 	onDisconnect HandleFunc
 }
 
-func NewHandler(hub *hub, eventHandler *EventHandler, ops ...OptionsFunc) *Handler {
+func NewHandler(hub *Hub, eventHandler *EventHandler, ops ...OptionsFunc) *Handler {
 	h := &Handler{
 		hub:            hub,
 		eventHandler:   eventHandler,

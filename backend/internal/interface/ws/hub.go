@@ -33,29 +33,29 @@ type NilOmitter struct{}
 
 func (n *NilOmitter) Omit(ctx context.Context, event string, data any) error { return nil }
 
-// hub manages websocket connections and rooms.
-type hub struct {
+// Hub manages websocket connections and rooms.
+type Hub struct {
 	conns   map[ID]*Connection
 	connsMu sync.RWMutex
 
-	rooms   map[string]*room
+	rooms   map[string]*Room
 	roomsMu sync.RWMutex
 }
 
-func NewWSHub() *hub {
-	return &hub{
+func NewWSHub() *Hub {
+	return &Hub{
 		conns: make(map[ID]*Connection),
-		rooms: make(map[string]*room),
+		rooms: make(map[string]*Room),
 	}
 }
 
 // addConn add new conn
-func (h *hub) addConn(conn *Connection) {
+func (h *Hub) addConn(conn *Connection) {
 	h.conns[conn.ID()] = conn
 }
 
 // AddConn add new conn
-func (h *hub) AddConn(conn *Connection) {
+func (h *Hub) AddConn(conn *Connection) {
 	h.connsMu.Lock()
 	defer h.connsMu.Unlock()
 
@@ -63,12 +63,12 @@ func (h *hub) AddConn(conn *Connection) {
 }
 
 // Remove conn by id
-func (h *hub) delConn(id ID) {
+func (h *Hub) delConn(id ID) {
 	delete(h.conns, id)
 }
 
 // leaveAllRoom makes the connection leave all joined rooms.
-func (h *hub) leaveAllRoom(conn *Connection) {
+func (h *Hub) leaveAllRoom(conn *Connection) {
 	roomNames := conn.JoinedRooms()
 
 	h.roomsMu.Lock()
@@ -80,13 +80,13 @@ func (h *hub) leaveAllRoom(conn *Connection) {
 }
 
 // LeaveAllRoom makes the connection leave all joined rooms.
-func (h *hub) LeaveAllRoom(conn *Connection) {
+func (h *Hub) LeaveAllRoom(conn *Connection) {
 	h.leaveAllRoom(conn)
 }
 
 // Remove conn
 // leave all rooms before remove
-func (h *hub) DelConn(conn *Connection) {
+func (h *Hub) DelConn(conn *Connection) {
 	h.connsMu.Lock()
 	defer h.connsMu.Unlock()
 
@@ -96,7 +96,7 @@ func (h *hub) DelConn(conn *Connection) {
 }
 
 // joinRoom makes the connection join the specified room.
-func (h *hub) joinRoom(name string, conn *Connection) {
+func (h *Hub) joinRoom(name string, conn *Connection) {
 	room, ok := h.rooms[name]
 	if !ok {
 		room = NewRoom()
@@ -108,7 +108,7 @@ func (h *hub) joinRoom(name string, conn *Connection) {
 }
 
 // JoinRoom makes the connection join the specified room.
-func (h *hub) JoinRoom(name string, conn *Connection) {
+func (h *Hub) JoinRoom(name string, conn *Connection) {
 	h.roomsMu.Lock()
 	defer h.roomsMu.Unlock()
 
@@ -116,7 +116,7 @@ func (h *hub) JoinRoom(name string, conn *Connection) {
 }
 
 // leaveRoom makes the connection leave the specified room.
-func (h *hub) leaveRoom(name string, conn *Connection) {
+func (h *Hub) leaveRoom(name string, conn *Connection) {
 	room, ok := h.rooms[name]
 	if !ok {
 		return
@@ -130,7 +130,7 @@ func (h *hub) leaveRoom(name string, conn *Connection) {
 }
 
 // LeaveRoom makes the connection leave the specified room.
-func (h *hub) LeaveRoom(name string, conn *Connection) {
+func (h *Hub) LeaveRoom(name string, conn *Connection) {
 	h.roomsMu.Lock()
 	defer h.roomsMu.Unlock()
 
@@ -138,7 +138,7 @@ func (h *hub) LeaveRoom(name string, conn *Connection) {
 }
 
 // ToRoom returns an Emitter that sends events to all connections in the specified room.
-func (h *hub) ToRoom(name string) Emitter {
+func (h *Hub) ToRoom(name string) Emitter {
 	h.roomsMu.RLock()
 	defer h.roomsMu.RUnlock()
 
@@ -153,7 +153,7 @@ func (h *hub) ToRoom(name string) Emitter {
 }
 
 // ToRoomOmit returns an Omitter that sends events to all connections in the specified room except the specified connection.
-func (h *hub) ToRoomOmit(name string, omitConn *Connection) Omitter {
+func (h *Hub) ToRoomOmit(name string, omitConn *Connection) Omitter {
 	h.roomsMu.RLock()
 	defer h.roomsMu.RUnlock()
 
@@ -168,7 +168,7 @@ func (h *hub) ToRoomOmit(name string, omitConn *Connection) Omitter {
 	}
 }
 
-func (h *hub) ToConn(id ID) Emitter {
+func (h *Hub) ToConn(id ID) Emitter {
 	h.connsMu.RLock()
 	defer h.connsMu.RUnlock()
 
@@ -182,13 +182,13 @@ func (h *hub) ToConn(id ID) Emitter {
 	}
 }
 
-func (h *hub) Size() int {
+func (h *Hub) Size() int {
 	h.connsMu.RLock()
 	defer h.connsMu.RUnlock()
 	return len(h.conns)
 }
 
-func (h *hub) RoomsSize() int {
+func (h *Hub) RoomsSize() int {
 	h.roomsMu.RLock()
 	defer h.roomsMu.RUnlock()
 	return len(h.rooms)
