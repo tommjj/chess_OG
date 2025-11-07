@@ -2,6 +2,7 @@ package chess_core
 
 import (
 	"errors"
+	"fmt"
 )
 
 var (
@@ -18,18 +19,15 @@ var (
 	ErrTooManyPieces     = errors.New("too many pieces on the board")
 	ErrNegativeHalfmove  = errors.New("negative halfmove clock")
 	ErrNegativeFullmove  = errors.New("negative fullmove number")
-	ErrInvalidMove       = errors.New("invalid move")
-	ErrIllegalMove       = errors.New("illegal move")
-	ErrNoMovesAvailable  = errors.New("no moves available")
 
-	ErrCheckmate = errors.New("checkmate")
-	ErrStalemate = errors.New("stalemate")
-	ErrMatchEnd  = errors.New("the match ended")
+	ErrNoMovesAvailable = errors.New("no moves available")
 
-	ErrInsufficientMaterial = errors.New("insufficient material to continue the game")
-	ErrThreefoldRepetition  = errors.New("game over because of three repetitions")
+	ErrMatchEnd = errors.New("the match ended")
 
-	ErrInvalidPromotion = errors.New("invalid promotion")
+	ErrInvalidMove      = errors.New("invalid move")
+	ErrInvalidPromotion = fmt.Errorf("%w: invalid promotion", ErrInvalidMove)
+	ErrMoveIntoCheck    = fmt.Errorf("%w: move into check", ErrInvalidMove)
+	ErrMoveOutOfTurn    = fmt.Errorf("%w: move out of turn", ErrInvalidMove)
 )
 
 func wrapError(err error, message string) error {

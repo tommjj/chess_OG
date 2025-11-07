@@ -402,23 +402,14 @@ func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (Gam
 	gs.mx.Lock()
 	defer gs.mx.Unlock()
 
-	switch gs.state {
-	case ResultCheckmate:
-		return gs.state, ErrCheckmate
-	case ResultStalemate:
-		return gs.state, ErrStalemate
-	case ResultDrawBy50Move:
+	if gs.state != ResultOngoing {
 		return gs.state, ErrMatchEnd
-	case ResultInsufficientMaterial:
-		return gs.state, ErrInsufficientMaterial
-	case ResultThreefoldRepetition:
-		return gs.state, ErrThreefoldRepetition
 	}
 
 	// handle validate move
 
 	if gs.SideToMove != side {
-		return "", ErrIllegalMove
+		return "", ErrMoveOutOfTurn
 	}
 
 	move, err := gs.createMove(from, to, promo)
@@ -431,7 +422,7 @@ func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (Gam
 	makeUnsafeMove(bbs, move)
 
 	if IsKingAttacked(side, bbs) {
-		return "", ErrInvalidMove
+		return "", ErrMoveIntoCheck
 	}
 
 	// Set new state
@@ -482,17 +473,17 @@ func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (Gam
 
 	if gs.isInsufficientMaterial() {
 		gs.state = ResultInsufficientMaterial
-		return gs.state, ErrMatchEnd // bắt buộc hòa
+		return gs.state, nil
 	}
 
 	if gs.isThreefoldRepetition() {
 		gs.state = ResultThreefoldRepetition
-		return gs.state, ErrMatchEnd // bắt buộc hòa
+		return gs.state, nil
 	}
 
 	if gs.HalfmoveClock >= 150 { // 75 moves per side = 150 ply
-		gs.state = ResultDrawBy50Move
-		return gs.state, ErrMatchEnd // bắt buộc hòa
+		gs.state = ResultDrawBy75Move
+		return gs.state, nil
 	}
 
 	return gs.state, nil
@@ -509,13 +500,20 @@ func (gs *GameState) MakeDrawBy50Move() error {
 
 	// chỉ có thể yêu cầu hòa khi ván chưa kết thúc
 	switch gs.state {
-	case ResultCheckmate, ResultStalemate, ResultDrawBy50Move, ResultInsufficientMaterial:
+	case ResultCheckmate, ResultStalemate, ResultDrawBy75Move, ResultInsufficientMaterial:
 		return ErrMatchEnd
 	}
 
 	// đặt trạng thái hòa
-	gs.state = ResultDrawBy50Move
+	gs.state = ResultDrawBy75Move
 	return nil
+}
+
+func (gs *GameState) CanMakeDrawBy50Move() bool {
+	gs.mx.Lock()
+	defer gs.mx.Unlock()
+
+	return gs.HalfmoveClock > 100
 }
 
 func (gs *GameState) isInsufficientMaterial() bool {
