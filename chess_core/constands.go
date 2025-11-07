@@ -364,32 +364,13 @@ const StartingFEN string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -
 const EmptyFEN string = "8/8/8/8/8/8/8/8 w - - 0 1"
 
 // GameResult
-type GameResult int
+type GameResult string
 
 const (
-	ResultOngoing GameResult = iota
-	ResultCheckmate
-	ResultStalemate
-	ResultDrawBy50Move
-	ResultInsufficientMaterial
-	ResultThreefoldRepetition
+	ResultOngoing              GameResult = "Result Ongoing"
+	ResultCheckmate            GameResult = "Result Checkmate"
+	ResultStalemate            GameResult = "Result Stalemate"
+	ResultDrawBy50Move         GameResult = "Result Draw By 50 Move"
+	ResultInsufficientMaterial GameResult = "Result Insufficient Material"
+	ResultThreefoldRepetition  GameResult = "Result Threefold Repetition"
 )
-
-func (g GameResult) String() string {
-	switch g {
-	case ResultOngoing:
-		return "Result Ongoing"
-	case ResultCheckmate:
-		return "Result Checkmate"
-	case ResultStalemate:
-		return "Result Stalemate"
-	case ResultDrawBy50Move:
-		return "Result Draw By 50 Move"
-	case ResultInsufficientMaterial:
-		return "Result Insufficient Material"
-	case ResultThreefoldRepetition:
-		return "Result Threefold Repetition"
-	default:
-		return "Unknown Result"
-	}
-}

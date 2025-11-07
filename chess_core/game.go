@@ -418,12 +418,12 @@ func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (Gam
 	// handle validate move
 
 	if gs.SideToMove != side {
-		return -1, ErrIllegalMove
+		return "", ErrIllegalMove
 	}
 
 	move, err := gs.createMove(from, to, promo)
 	if err != nil {
-		return -1, err
+		return "", err
 	}
 
 	bbs := gs.BitBoards.Copy()
@@ -431,7 +431,7 @@ func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (Gam
 	makeUnsafeMove(bbs, move)
 
 	if IsKingAttacked(side, bbs) {
-		return -1, ErrInvalidMove
+		return "", ErrInvalidMove
 	}
 
 	// Set new state
@@ -573,6 +573,86 @@ func (gs *GameState) isThreefoldRepetition() bool {
 	return false
 }
 
+func (gs *GameState) canForceCheckmate(playerColor Color) bool {
+	bb := gs.BitBoards
+
+	var checkingPieces BitBoard
+	var targetPieces BitBoard
+	var checkingKnights int
+	var checkingBishops int
+	var targetPiecesCount int // Luôn là 1, nhưng để nhất quán
+
+	if playerColor == White {
+		checkingPieces = bb.WhitePieces
+		targetPieces = bb.BlackPieces
+		checkingKnights = bb.WhiteKnights.Count()
+		checkingBishops = bb.WhiteBishops.Count()
+	} else {
+		checkingPieces = bb.BlackPieces
+		targetPieces = bb.WhitePieces
+		checkingKnights = bb.BlackKnights.Count()
+		checkingBishops = bb.BlackBishops.Count()
+	}
+
+	targetPiecesCount = targetPieces.Count()
+	checkingPiecesCount := checkingPieces.Count()
+
+	// Trường hợp 1: Có quân nặng/Tốt (Đảm bảo thắng)
+	if checkingPiecesCount > (checkingKnights + checkingBishops + 1) { // 1 là Vua
+		// Nếu có hơn Vua, Mã, Tượng (ví dụ: Hậu, Xe, Tốt)
+		return true
+	}
+
+	// Trường hợp 2: K vs K
+	if checkingPiecesCount == 1 {
+		return false // Chỉ còn Vua
+	}
+
+	if targetPiecesCount > 1 {
+		return true
+	}
+
+	// Trường hợp 3: K+N vs K, hoặc K+B vs K
+	if checkingPiecesCount == 2 {
+		if checkingKnights == 1 || checkingBishops == 1 {
+			return false // K+N vs K, hoặc K+B vs K: KHÔNG THỂ chiếu hết
+		}
+	}
+
+	// Trường hợp 4: K+N+N vs K
+	if checkingPiecesCount == 3 && checkingKnights == 2 {
+		return false // K+N+N vs K: KHÔNG THỂ chiếu hết theo luật FIDE cơ bản cho timeout
+	}
+
+	// Trường hợp 5: K+B+B vs K (Cần kiểm tra màu ô)
+	if checkingPiecesCount == 3 && checkingBishops == 2 {
+		// Lấy vị trí 2 Tượng
+		var bishop1, bishop2 Square
+		if playerColor == Black {
+			bishop1 = Square(bb.BlackBishops.LeastSignificantBit())
+			bishop2 = Square(bb.BlackBishops.MostSignificantBit())
+		} else {
+			bishop1 = Square(bb.WhiteBishops.LeastSignificantBit())
+			bishop2 = Square(bb.WhiteBishops.MostSignificantBit())
+		}
+
+		// Kiểm tra màu ô
+		isLight1 := (bishop1.File()+bishop1.Rank())%2 == 0
+		isLight2 := (bishop2.File()+bishop2.Rank())%2 == 0
+
+		return isLight1 != isLight2
+	}
+
+	return true
+}
+
+func (gs *GameState) CanForceCheckmate(playerColor Color) bool {
+	gs.mx.Lock()
+	defer gs.mx.Unlock()
+
+	return gs.canForceCheckmate(playerColor)
+}
+
 // get winner player
 func (gs *GameState) Winner() (Color, bool) {
 	if gs.state == ResultCheckmate {
@@ -592,9 +672,17 @@ func (gs *GameState) computeZobristHash() uint64 {
 
 // kiểm tra xem 2 tượng có cùng màu ô không
 func sameBishopColor(whiteBishop, blackBishop BitBoard) bool {
-	whiteSq := whiteBishop.LeastSignificantBit()
-	blackSq := blackBishop.LeastSignificantBit()
-	return (whiteSq+blackSq)%2 == 0 // cùng màu ô
+	if whiteBishop == 0 || blackBishop == 0 {
+		return false // Một bên không có tượng thì không cần so sánh
+	}
+
+	whiteSq := Square(whiteBishop.LeastSignificantBit())
+	blackSq := Square(blackBishop.LeastSignificantBit())
+
+	isLight1 := (whiteSq.File()+whiteSq.Rank())%2 == 0
+	isLight2 := (blackSq.File()+blackSq.Rank())%2 == 0
+
+	return isLight1 == isLight2
 }
 
 type MoveHistory struct {
