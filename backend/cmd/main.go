@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	chess "github.com/tommjj/chess_OG/chess_core"
@@ -15,52 +13,56 @@ func main() {
 		BitBoards: &chess.BitBoards{},
 	}
 
-	err := gs.FromFEN(chess.StartingFEN)
+	err := gs.FromFEN("4k3/8/8/8/8/8/8/4K3 w KQkq - 0 1")
+	gs.BitBoards.SetPieceAt(chess.SquareF3, chess.WBishop)
+	gs.BitBoards.SetPieceAt(chess.SquareD5, chess.WBishop)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println(gs.String())
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		line := scanner.Text()
+	// fmt.Println(gs.String())
 
-		if line == "history" {
-			fmt.Printf("%+v\n", gs.History())
-			continue
-		}
+	// scanner := bufio.NewScanner(os.Stdin)
+	// for scanner.Scan() {
+	// 	line := scanner.Text()
 
-		from, to, ok := strings.Cut(line, " ")
-		if !ok {
-			fmt.Println("sai")
-			continue
-		}
+	// 	if line == "history" {
+	// 		fmt.Printf("%+v\n", gs.History())
+	// 		continue
+	// 	}
 
-		fromSq, ok := toSquare(from)
-		if !ok {
-			fmt.Println("sai")
-			continue
-		}
+	// 	from, to, ok := strings.Cut(line, " ")
+	// 	if !ok {
+	// 		fmt.Println("sai")
+	// 		continue
+	// 	}
 
-		toSq, ok := toSquare(to)
-		if !ok {
-			fmt.Println("sai")
-			continue
-		}
+	// 	fromSq, ok := toSquare(from)
+	// 	if !ok {
+	// 		fmt.Println("sai")
+	// 		continue
+	// 	}
 
-		result, err := gs.MakeMove(gs.SideToMove, fromSq, toSq, 0)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		fmt.Println(result)
-		fmt.Println(gs.String())
-	}
+	// 	toSq, ok := toSquare(to)
+	// 	if !ok {
+	// 		fmt.Println("sai")
+	// 		continue
+	// 	}
 
-	if err := scanner.Err(); err != nil {
-		fmt.Println("Lỗi đọc:", err)
-	}
+	// 	result, err := gs.MakeMove(gs.SideToMove, fromSq, toSq, 0)
+	// 	if err != nil {
+	// 		fmt.Println(err)
+	// 		continue
+	// 	}
+	// 	fmt.Println(result)
+	// 	fmt.Println(gs.String())
+	// }
+
+	// if err := scanner.Err(); err != nil {
+	// 	fmt.Println("Lỗi đọc:", err)
+	// }
 }
 
 func toSquare(p string) (chess.Square, bool) {

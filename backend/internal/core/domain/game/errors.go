@@ -1,6 +1,8 @@
 package game
 
 import (
+	"errors"
+
 	chess "github.com/tommjj/chess_OG/chess_core"
 )
 
@@ -18,16 +20,15 @@ var (
 	ErrTooManyPieces     = chess.ErrTooManyPieces
 	ErrNegativeHalfmove  = chess.ErrNegativeHalfmove
 	ErrNegativeFullmove  = chess.ErrNegativeFullmove
-	ErrInvalidMove       = chess.ErrInvalidMove
-	ErrIllegalMove       = chess.ErrIllegalMove
 	ErrNoMovesAvailable  = chess.ErrNoMovesAvailable
 
-	ErrCheckmate = chess.ErrCheckmate
-	ErrStalemate = chess.ErrStalemate
-	ErrMatchEnd  = chess.ErrMatchEnd
+	ErrMatchEnd = chess.ErrMatchEnd
 
-	ErrInsufficientMaterial = chess.ErrInsufficientMaterial
-	ErrThreefoldRepetition  = chess.ErrThreefoldRepetition
-
+	ErrInvalidMove      = chess.ErrInvalidMove
 	ErrInvalidPromotion = chess.ErrInvalidPromotion
+	ErrMoveIntoCheck    = chess.ErrMoveIntoCheck
+	ErrMoveOutOfTurn    = chess.ErrMoveOutOfTurn
+
+	ErrGamePaused     = errors.New("error game paused")
+	ErrGameNotStarted = errors.New("error game not started")
 )

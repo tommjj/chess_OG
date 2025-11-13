@@ -12,17 +12,17 @@ func main() {
 	server := http.NewServeMux()
 	fs := http.FileServer(http.FS(web.StaticFS))
 
-	eventHandler := ws.NewEventHandler()
+	e := ws.NewEventHandler()
 
-	eventHandler.Register("hello", func(ctx *ws.Context) {
+	e.Register("hello", func(ctx *ws.Context) {
 		fmt.Println("Received hello event with data:", ctx.Conn.ID())
 
 		fmt.Println("conn size", ctx.Hub.Size())
 		fmt.Println("room size", ctx.Hub.RoomsSize())
-
+		ctx.Emit(ctx, "hello", "hello from server!")
 	})
 
-	eventHandler.Register("join", func(ctx *ws.Context) {
+	e.Register("join", func(ctx *ws.Context) {
 		var room string
 		err := ctx.BindJSON(&room)
 		if err != nil {
@@ -39,7 +39,7 @@ func main() {
 		Mess string `json:"mess"`
 	}
 
-	eventHandler.Register("message", func(ctx *ws.Context) {
+	e.Register("message", func(ctx *ws.Context) {
 		var msg Message
 		err := ctx.BindJSON(&msg)
 		if err != nil {
@@ -52,7 +52,11 @@ func main() {
 		fmt.Println("Received message from", ctx.Conn.ID().String(), ":", msg.Mess)
 	})
 
-	handler := ws.NewHandler(ws.NewWSHub(), eventHandler, ws.WithOnConnect(func(ctx *ws.Context) {
+	e.Register("disconnection", func(ctx *ws.Context) {
+		ctx.Close("disconnection event")
+	})
+
+	handler := ws.NewHandler(ws.NewWSHub(), e, ws.WithOnConnect(func(ctx *ws.Context) {
 		fmt.Println("New connection established with ID:", ctx.Conn.ID())
 
 		copyCtx := ctx.Clone()

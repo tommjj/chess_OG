@@ -21,7 +21,7 @@ type GameState struct {
 	startFen string
 	history  History
 
-	state GameResult
+	state GameStatus
 
 	mx sync.Mutex
 }
@@ -398,7 +398,7 @@ func (gs *GameState) createMove(from, to Square, promo PieceType) (Move, error) 
 	}
 }
 
-func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (GameResult, error) {
+func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (GameStatus, error) {
 	gs.mx.Lock()
 	defer gs.mx.Unlock()
 
@@ -660,7 +660,7 @@ func (gs *GameState) Winner() (Color, bool) {
 }
 
 // get current game state
-func (gs *GameState) State() GameResult {
+func (gs *GameState) State() GameStatus {
 	return gs.state
 }
 

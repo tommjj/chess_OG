@@ -1,12 +1,16 @@
 package game
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 var NullTime = time.Time{}
 
-// Timer represents a chess game timer.
-type Timer struct {
+// timer represents a chess game timer.
+type timer struct {
 	InitialTimeSeconds int // Initial time in seconds for each player.
+	IncreaseDuration   time.Duration
 
 	BlackTime time.Duration // Remaining time for Black.
 	WhiteTime time.Duration // Remaining time for White.
@@ -15,114 +19,55 @@ type Timer struct {
 
 	LastUpdate time.Time // Timestamp of the last update; -1 if the timer is stopped.
 
-	TimeOutSignal chan Color  // Channel to signal when a player runs out of time.
-	ActiveTimer   *time.Timer // Internal timer for countdown.
+	timeoutCallback func(timeoutColor Color) // Timeout callback
+	activeTimer     *time.Timer              // Internal timer for countdown.
+
+	duration time.Duration // time of game
+
+	hashEnd bool // set when time out
+	mx      sync.Mutex
 }
 
 // NewTimer creates a new Timer with the specified initial time for each player.
-// Writes initial time to both players' clocks and sets the current turn to White.
-func NewTimer(initialTimeSeconds int) *Timer {
-	return &Timer{
+// Writes initial time to both players' clocks
+func NewTimer(initialTimeSeconds int, increaseDuration time.Duration, turn Color, timeoutCallback func(timeoutColor Color)) *timer {
+	return &timer{
 		InitialTimeSeconds: initialTimeSeconds,
+		IncreaseDuration:   increaseDuration,
 		BlackTime:          time.Duration(initialTimeSeconds) * time.Second,
 		WhiteTime:          time.Duration(initialTimeSeconds) * time.Second,
-		CurrentTurn:        White,
+		CurrentTurn:        turn,
 		LastUpdate:         NullTime,
-
-		TimeOutSignal: make(chan Color, 1),
+		timeoutCallback:    timeoutCallback,
 	}
 }
 
-// Clone creates a deep copy of the Timer.
-func (t *Timer) Clone() *Timer {
-	return &Timer{
-		InitialTimeSeconds: t.InitialTimeSeconds,
-		BlackTime:          t.BlackTime,
-		WhiteTime:          t.WhiteTime,
-		CurrentTurn:        t.CurrentTurn,
-		LastUpdate:         t.LastUpdate,
-	}
+func (t *timer) HasStarted() bool {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+
+	return t.duration == 0 && t.LastUpdate.Equal(NullTime)
 }
 
-func (t *Timer) IsStopped() bool {
-	return t.LastUpdate.IsZero()
+func (t *timer) isStopped() bool { return t.LastUpdate.Equal(NullTime) }
+func (t *timer) IsStopped() bool {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+
+	return t.isStopped()
 }
 
-func (t *Timer) IsRunning() bool {
-	return !t.LastUpdate.IsZero()
+func (t *timer) isRunning() bool { return t.LastUpdate != NullTime }
+func (t *timer) IsRunning() bool {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+
+	return t.isRunning()
 }
 
-func (t *Timer) Stop() {
-	if t.IsRunning() {
-		if t.ActiveTimer != nil {
-			t.ActiveTimer.Stop()
-		}
-		t.ActiveTimer = nil
-
-		now := time.Now()
-		elapsed := now.Sub(t.LastUpdate)
-
-		if t.CurrentTurn == White {
-			t.WhiteTime -= elapsed
-		} else {
-			t.BlackTime -= elapsed
-		}
-
-		t.LastUpdate = NullTime
-	}
-}
-
-func (t *Timer) Start() {
-	if t.IsStopped() {
-		if t.ActiveTimer != nil {
-			t.ActiveTimer.Stop()
-		}
-
-		if t.CurrentTurn == White {
-			t.ActiveTimer = time.AfterFunc(t.BlackTime, func() {
-				t.TimeOutSignal <- White
-			})
-		} else {
-			t.ActiveTimer = time.AfterFunc(t.WhiteTime, func() {
-				t.TimeOutSignal <- Black
-			})
-		}
-
-		t.LastUpdate = time.Now()
-	}
-}
-
-func (t *Timer) getWhiteTime() time.Duration {
-	if t.IsRunning() && t.CurrentTurn == White {
-		elapsed := time.Since(t.LastUpdate)
-		return t.WhiteTime - elapsed
-	}
-	return t.WhiteTime
-}
-
-func (t *Timer) getBlackTime() time.Duration {
-	if t.IsRunning() && t.CurrentTurn == Black {
-		elapsed := time.Since(t.LastUpdate)
-		return t.BlackTime - elapsed
-	}
-	return t.BlackTime
-}
-
-func (t *Timer) GetCurrentPlayerTime() time.Duration {
-	if t.CurrentTurn == White {
-		return t.getWhiteTime()
-	}
-	return t.getBlackTime()
-}
-
-func (t *Timer) SwitchTurn() {
-	if t.IsStopped() {
+func (t *timer) updateTime() {
+	if t.LastUpdate.Equal(NullTime) {
 		return
-	}
-
-	// clear timer
-	if t.ActiveTimer != nil {
-		t.ActiveTimer.Stop()
 	}
 
 	now := time.Now()
@@ -130,39 +75,195 @@ func (t *Timer) SwitchTurn() {
 
 	if t.CurrentTurn == White {
 		t.WhiteTime -= elapsed
-		t.CurrentTurn = Black
-
-		t.ActiveTimer = time.AfterFunc(t.BlackTime, func() {
-			t.TimeOutSignal <- Black
-		})
+		if t.WhiteTime < 0 {
+			t.WhiteTime = 0
+		}
 	} else {
 		t.BlackTime -= elapsed
-		t.CurrentTurn = White
-
-		t.ActiveTimer = time.AfterFunc(t.WhiteTime, func() {
-			t.TimeOutSignal <- White
-		})
+		if t.BlackTime < 0 {
+			t.BlackTime = 0
+		}
 	}
-
+	t.duration += elapsed
 	t.LastUpdate = now
 }
 
-func (t *Timer) HasFlagged() bool {
-	return t.getWhiteTime() <= 0 || t.getBlackTime() <= 0
+func (t *timer) Stop() bool {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+
+	if t.isStopped() {
+		return false
+	}
+
+	if t.activeTimer != nil {
+		t.activeTimer.Stop()
+	}
+	t.activeTimer = nil
+
+	t.updateTime()
+	t.LastUpdate = NullTime
+
+	return true
 }
 
-func (t *Timer) GetWinnerOnFlag() Color {
-	if t.getWhiteTime() <= 0 {
-		return Black
-	} else if t.getBlackTime() <= 0 {
-		return White
+func (t *timer) Start() bool {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+
+	if t.isRunning() {
+		return false
 	}
-	return Both
+
+	t.LastUpdate = time.Now()
+	t.setTimeout()
+	return true
 }
 
-func (t *Timer) GetTimes(color Color) time.Duration {
-	if color == White {
-		return t.getWhiteTime()
+func (t *timer) GetWhiteDuration() time.Duration {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+
+	if t.isRunning() && t.CurrentTurn == White {
+		elapsed := time.Since(t.LastUpdate)
+		return t.WhiteTime + elapsed
 	}
-	return t.getBlackTime()
+
+	return t.WhiteTime
+}
+
+func (t *timer) GetBlackDuration() time.Duration {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+
+	if t.isRunning() && t.CurrentTurn == Black {
+		elapsed := time.Since(t.LastUpdate)
+		return t.BlackTime + elapsed
+	}
+
+	return t.BlackTime
+}
+
+func (t *timer) GetTimes(color Color) time.Duration {
+	switch color {
+	case Black:
+		return t.GetBlackDuration()
+	case White:
+		return t.GetWhiteDuration()
+	default:
+		return -1
+	}
+}
+
+func (t *timer) GetCurrentPlayerTime() time.Duration {
+	switch t.CurrentTurn {
+	case Black:
+		return t.GetBlackDuration()
+	case White:
+		return t.GetWhiteDuration()
+	default:
+		return -1
+	}
+}
+
+func (t *timer) SwitchTurn() bool {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+
+	if t.isStopped() {
+		return false
+	}
+
+	t.updateTime()
+	if t.BlackTime == 0 || t.WhiteTime == 0 { // timeout
+		t.LastUpdate = NullTime
+		return false
+	} else { // reset time out
+		t.setTimeout()
+	}
+
+	if t.CurrentTurn == White {
+		t.WhiteTime += t.IncreaseDuration
+	} else {
+		t.BlackTime += t.IncreaseDuration
+	}
+
+	t.CurrentTurn = t.CurrentTurn.Opposite()
+	return true
+}
+
+func (t *timer) HasFlagged() bool {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+
+	if t.isStopped() {
+		return t.WhiteTime == 0 || t.BlackTime == 0
+	}
+
+	elapsed := time.Since(t.LastUpdate)
+	if t.CurrentTurn == Black {
+		return t.WhiteTime == 0 || t.BlackTime-elapsed <= 0
+	} else {
+		return t.WhiteTime-elapsed <= 0 || t.BlackTime == 0
+	}
+}
+
+func (t *timer) GetWinnerOnFlag() (Color, bool) {
+	if t.HasFlagged() {
+		return t.CurrentTurn, true
+	}
+	return None, false
+}
+
+// get current duration
+func (t *timer) GetDuration() time.Duration {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+
+	if t.isRunning() {
+		elapsed := time.Since(t.LastUpdate)
+		return t.duration + elapsed
+	}
+
+	return t.duration
+}
+
+func (t *timer) handleTimeout() {
+	t.mx.Lock()
+
+	t.updateTime()
+	t.LastUpdate = NullTime
+
+	var timeoutColor Color
+
+	switch {
+	case t.BlackTime == 0:
+		timeoutColor = Black
+	case t.WhiteTime == 0:
+		timeoutColor = White
+	default: // do nothing
+		t.mx.Unlock()
+		return
+	}
+	t.mx.Unlock()
+
+	if t.timeoutCallback != nil {
+		t.timeoutCallback(timeoutColor)
+	}
+}
+
+func (t *timer) clearTimeout() {
+	if t.activeTimer != nil {
+		t.activeTimer.Stop()
+		t.activeTimer = nil
+	}
+}
+
+func (t *timer) setTimeout() {
+	t.clearTimeout()
+	if t.CurrentTurn == White {
+		t.activeTimer = time.AfterFunc(t.WhiteTime+time.Millisecond*50, t.handleTimeout) // add more 50ms
+	} else {
+		t.activeTimer = time.AfterFunc(t.BlackTime+time.Millisecond*50, t.handleTimeout) // add more 50ms
+	}
 }

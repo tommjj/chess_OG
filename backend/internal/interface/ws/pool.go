@@ -38,11 +38,11 @@ var connSlicePool = sync.Pool{
 
 func acquireConnSlice() *[]*Connection {
 	conns := connSlicePool.Get().(*[]*Connection)
-	*conns = (*conns)[:0]
 	return conns
 }
 
 func releaseConnSlice(conns *[]*Connection) {
+	clear(*conns)
 	*conns = (*conns)[:0]
 	connSlicePool.Put(conns)
 }

@@ -4,31 +4,90 @@ import (
 	chess "github.com/tommjj/chess_OG/chess_core"
 )
 
+type EventType int
+
+const (
+	MoveMade EventType = iota
+	TimeUpdated
+	GameEnded
+	GameStarted
+	GameStopped
+)
+
 type Square = chess.Square
 type Piece = chess.Piece
 type Color = chess.Color
 type PieceType = chess.PieceType
+type Move = chess.Move
 
-type GameResult = chess.GameResult
+type GameStatus = chess.GameStatus
+
+const (
+	ResultOngoing              = GameStatus(chess.ResultOngoing)
+	ResultCheckmate            = GameStatus(chess.ResultCheckmate)
+	ResultStalemate            = GameStatus(chess.ResultStalemate)
+	ResultDrawBy75Move         = GameStatus(chess.ResultDrawBy75Move)
+	ResultInsufficientMaterial = GameStatus(chess.ResultInsufficientMaterial)
+	ResultThreefoldRepetition  = GameStatus(chess.ResultThreefoldRepetition)
+	ResultTimeout              = GameStatus("Result Timeout")
+	ResultDrawByTimeClaim      = GameStatus("Result Draw By Time Claim") // Yêu cầu hòa do hết giờ của đối thủ nhưng không đủ vật chất (theo luật FIDE)
+
+	// player
+	ResultResignation     = GameStatus("Result Resignation")       // Thua do đầu hàng (Người chơi tự nguyện Quit/Resign)
+	ResultDrawByAgreement = GameStatus("Result Draw By Agreement") // Hòa do đồng thuận giữa hai người chơi
+	ResultDrawBy50Move    = GameStatus("Result Draw By 50 Move")
+	ResultForfeit         = GameStatus("Result Forfeit") // Thua do mất kết nối/hết thời gian kết nối lại (Walkover)
+
+)
+
+type EndReason string
+
+const (
+	EndReasonDrawAgreement  EndReason = "draw_agreement" // Hai bên đồng ý hòa
+	EndReasonPlayerResigned EndReason = "resigned"       // Một bên đầu hàng
+	EndReasonDisconnected   EndReason = "disconnected"   // Một bên thoát giữa chừng
+	EndReasonAdminStop      EndReason = "admin_stop"     // Admin dừng trận
+	EndReasonError          EndReason = "error"          // Lỗi kỹ thuật hoặc logic
+)
 
 var (
 	White = Color(chess.White)
 	Black = Color(chess.Black)
 
 	Both = Color(chess.Both)
+	None = Color(chess.None)
 )
 
-var (
-	Pawn   = Piece(chess.Pawn)
-	Knight = Piece(chess.Knight)
-	Bishop = Piece(chess.Bishop)
-	Rook   = Piece(chess.Rook)
-	Queen  = Piece(chess.Queen)
-	King   = Piece(chess.King)
+// encode pieces
+const (
+	WPawn   = Piece(chess.WPawn)
+	WKnight = Piece(chess.WKnight)
+	WBishop = Piece(chess.WBishop)
+	WRook   = Piece(chess.WRook)
+	WQueen  = Piece(chess.WQueen)
+	WKing   = Piece(chess.WKing)
+
+	BPawn   = Piece(chess.BPawn)
+	BKnight = Piece(chess.BKnight)
+	BBishop = Piece(chess.BBishop)
+	BRook   = Piece(chess.BRook)
+	BQueen  = Piece(chess.BQueen)
+	BKing   = Piece(chess.BKing)
+
+	Empty = Piece(chess.Empty)
+)
+
+const (
+	Pawn   = PieceType(chess.Pawn)
+	Knight = PieceType(chess.Knight)
+	Bishop = PieceType(chess.Bishop)
+	Rook   = PieceType(chess.Rook)
+	Queen  = PieceType(chess.Queen)
+	King   = PieceType(chess.King)
 )
 
 // Square
-var (
+const (
 	SquareA1 = Square(chess.SquareA1)
 	SquareB1 = Square(chess.SquareB1)
 	SquareC1 = Square(chess.SquareC1)

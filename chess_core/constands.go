@@ -363,15 +363,15 @@ const StartingFEN string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -
 
 const EmptyFEN string = "8/8/8/8/8/8/8/8 w - - 0 1"
 
-// GameResult
-type GameResult string
+// GameStatus
+type GameStatus string
 
 const (
-	ResultOngoing      GameResult = "Result Ongoing"
-	ResultCheckmate    GameResult = "Result Checkmate"
-	ResultStalemate    GameResult = "Result Stalemate"
-	ResultDrawBy75Move GameResult = "Result Draw By 75 Move"
+	ResultOngoing      GameStatus = "Result Ongoing"
+	ResultCheckmate    GameStatus = "Result Checkmate"
+	ResultStalemate    GameStatus = "Result Stalemate"
+	ResultDrawBy75Move GameStatus = "Result Draw By 75 Move"
 
-	ResultInsufficientMaterial GameResult = "Result Insufficient Material"
-	ResultThreefoldRepetition  GameResult = "Result Threefold Repetition"
+	ResultInsufficientMaterial GameStatus = "Result Insufficient Material"
+	ResultThreefoldRepetition  GameStatus = "Result Threefold Repetition"
 )

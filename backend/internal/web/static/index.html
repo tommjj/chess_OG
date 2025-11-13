@@ -4,101 +4,244 @@
         <meta charset="UTF-8" />
         <title>Go WebSocket Test Client</title>
         <style>
+            html,
+            body,
+            div,
+            span,
+            applet,
+            object,
+            iframe,
+            h1,
+            h2,
+            h3,
+            h4,
+            h5,
+            h6,
+            p,
+            blockquote,
+            pre,
+            a,
+            abbr,
+            acronym,
+            address,
+            big,
+            cite,
+            code,
+            del,
+            dfn,
+            em,
+            img,
+            ins,
+            kbd,
+            q,
+            s,
+            samp,
+            small,
+            strike,
+            strong,
+            sub,
+            sup,
+            tt,
+            var,
+            b,
+            u,
+            i,
+            center,
+            dl,
+            dt,
+            dd,
+            ol,
+            ul,
+            li,
+            fieldset,
+            form,
+            label,
+            legend,
+            table,
+            caption,
+            tbody,
+            tfoot,
+            thead,
+            tr,
+            th,
+            td,
+            article,
+            aside,
+            canvas,
+            details,
+            embed,
+            figure,
+            figcaption,
+            footer,
+            header,
+            hgroup,
+            menu,
+            nav,
+            output,
+            ruby,
+            section,
+            summary,
+            time,
+            mark,
+            audio,
+            video {
+                margin: 0;
+                padding: 0;
+                border: 0;
+            }
+
             body {
                 font-family: sans-serif;
+                margin: 0;
+                padding: 0;
             }
-            button {
-                padding: 10px 15px;
-                margin: 5px;
-                cursor: pointer;
+
+            h1 {
+                margin-top: 10px;
             }
-            #output {
-                background: #eee;
-                padding: 10px;
-                border: 1px solid #ccc;
-                max-height: 300px;
-                overflow-y: scroll;
-                white-space: pre-wrap;
+
+            #container {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 5px;
+                height: 100vh;
+                padding: 0 10px;
             }
+
+            /* --- Left side (controls) --- */
+            #left-panel {
+                display: flex;
+                flex-direction: column;
+                border-right: 2px solid #ccc;
+                padding-right: 10px;
+            }
+
+            #status {
+                font-weight: bold;
+            }
+
             .connected {
                 color: green;
-                font-weight: bold;
             }
             .disconnected {
                 color: red;
             }
 
-            #messageInput {
-                width: 80%;
-                padding: 5px;
-                margin-top: 5px;
-                margin-left: 5px;
+            #controls {
+                margin-bottom: 15px;
             }
-            #joinInput {
-                width: 20%;
-                padding: 5px;
+
+            button {
+                padding: 10px 15px;
+                margin: 5px 5px 5px 0;
+                cursor: pointer;
+            }
+
+            #inputs {
+                flex-grow: 1;
+            }
+
+            #eventNameInput,
+            #payloadInput {
+                width: 98%;
+                padding: 8px;
                 margin-top: 5px;
-                margin-left: 5px;
+                font-family: monospace;
+                font-size: 14px;
+            }
+
+            textarea {
+                resize: vertical;
+            }
+
+            /* --- Right side (console) --- */
+            #right-panel {
+                display: flex;
+                flex-direction: column;
+            }
+
+            #output {
+                background: #f7f7f7;
+                border: 1px solid #ccc;
+                padding: 10px;
+                flex-grow: 1;
+                overflow-y: auto;
+                white-space: pre-wrap;
+                font-family: monospace;
+                font-size: 14px;
+            }
+
+            h2 {
+                margin: 10px 0;
+            }
+
+            p {
+                margin: 10px 0;
+            }
+
+            pre {
+                margin-bottom: 5px;
             }
         </style>
     </head>
     <body>
-        <h1>Go WebSocket Server Test</h1>
-        <p>
-            Status: <span id="status" class="disconnected">Disconnected</span>
-        </p>
+        <div id="container">
+            <!-- LEFT PANEL -->
+            <div id="left-panel">
+                <h1>Go WebSocket Server Test</h1>
+                <p>
+                    Status:
+                    <span id="status" class="disconnected">Disconnected</span>
+                </p>
 
-        <div id="controls">
-            <button id="connectBtn" onclick="connect()">Connect</button>
-            <button id="disconnectBtn" onclick="disconnect()" disabled>
-                Disconnect
-            </button>
-            <hr />
-            <button id="sendHelloBtn" onclick="sendHelloEvent()" disabled>
-                Send "hello" Event
-            </button>
-            <button id="sendJoinBtn" onclick="sendJoinEvent()" disabled>
-                Send "Join" Event
-            </button>
-            <button id="sendMessBtn" onclick="sendMessageEvent()" disabled>
-                Send "Message" Event
-            </button>
+                <div id="controls">
+                    <button id="connectBtn" onclick="connect()">Connect</button>
+                    <button id="disconnectBtn" onclick="disconnect()" disabled>
+                        Disconnect
+                    </button>
+                    <button
+                        id="sendEventBtn"
+                        onclick="sendMessageEvent()"
+                        disabled
+                    >
+                        SendEvent
+                    </button>
+                </div>
+
+                <div id="inputs">
+                    <input
+                        type="text"
+                        id="eventNameInput"
+                        placeholder="Enter event name"
+                    />
+                    <br />
+                    <textarea
+                        id="payloadInput"
+                        rows="30"
+                        placeholder="Enter payload"
+                    ></textarea>
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL -->
+            <div id="right-panel">
+                <h2>Console Output</h2>
+                <pre id="output"></pre>
+            </div>
         </div>
-
-        <div id="inputs">
-            <input
-                type="text"
-                id="joinInput"
-                placeholder="Enter room to join"
-            />
-            <input
-                type="text"
-                id="messageInput"
-                placeholder="Enter message to send"
-            />
-        </div>
-
-        <h2>Console Output</h2>
-        <pre id="output"></pre>
 
         <script>
             const SOCKET_URL = `ws://localhost:8080/ws`;
             let ws = null;
 
-            // References to DOM elements
             const statusElement = document.getElementById('status');
             const outputElement = document.getElementById('output');
             const connectBtn = document.getElementById('connectBtn');
             const disconnectBtn = document.getElementById('disconnectBtn');
-            const sendHelloBtn = document.getElementById('sendHelloBtn');
-            const sendJoinBtn = document.getElementById('sendJoinBtn');
-            const sendMessBtn = document.getElementById('sendMessBtn');
+            const sendEventBtn = document.getElementById('sendEventBtn');
+            const eventInput = document.getElementById('eventNameInput');
+            const payloadInput = document.getElementById('payloadInput');
 
-            // input elements
-            const joinInput = document.getElementById('joinInput');
-            const messageInput = document.getElementById('messageInput');
-
-            // Hàm ghi log ra giao diện
             function log(message, isError = false) {
                 outputElement.textContent += `\n[${new Date().toLocaleTimeString()}] ${
                     isError ? '❌ ERROR: ' : ''
@@ -106,19 +249,15 @@
                 outputElement.scrollTop = outputElement.scrollHeight;
             }
 
-            // Cập nhật trạng thái nút
             function updateButtons(isConnected) {
                 connectBtn.disabled = isConnected;
                 disconnectBtn.disabled = !isConnected;
-                sendHelloBtn.disabled = !isConnected;
-                sendJoinBtn.disabled = !isConnected;
-                sendMessBtn.disabled = !isConnected;
+                sendEventBtn.disabled = !isConnected;
                 statusElement.className = isConnected
                     ? 'connected'
                     : 'disconnected';
             }
 
-            // Hàm kết nối
             function connect() {
                 if (ws) {
                     log('Already connected.');
@@ -128,14 +267,19 @@
                 ws = new WebSocket(SOCKET_URL);
                 statusElement.textContent = 'Connecting...';
 
-                ws.onopen = (event) => {
+                ws.onopen = () => {
                     statusElement.textContent = 'Connected';
                     log('Connection established successfully.');
                     updateButtons(true);
                 };
 
                 ws.onmessage = (event) => {
-                    log(`Received message: ${JSON.parse(event.data).payload}`);
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`Received: ${JSON.stringify(data, null, 2)}`);
+                    } catch {
+                        log(`Received raw: ${event.data}`);
+                    }
                 };
 
                 ws.onerror = (error) => {
@@ -151,82 +295,29 @@
                 };
             }
 
-            // Hàm gửi tin nhắn "hello"
-            function sendHelloEvent() {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    // Định dạng JSON phải khớp với cấu trúc mà server Go mong đợi
-                    const message = {
-                        event: 'hello', // Tên event được server đăng ký
-                        payload: {
-                            timestamp: new Date().toISOString(),
-                            source: 'button_click',
-                        },
-                    };
-
-                    const jsonString = JSON.stringify(message);
-                    ws.send(jsonString);
-                    log(`Sent 'hello' event: ${jsonString}`);
-                } else {
-                    log('Cannot send message. WebSocket is not open.', true);
-                }
-            }
-
-            // Hàm gửi tin nhắn "join"
-            function sendJoinEvent() {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    const room = joinInput.value;
-                    if (!room) {
-                        log('Please enter a room to join.', true);
-                        return;
-                    }
-
-                    // Định dạng JSON phải khớp với cấu trúc mà server Go mong đợi
-                    const message = {
-                        event: 'join', // Tên event được server đăng ký
-                        payload: room.trim(),
-                    };
-
-                    const jsonString = JSON.stringify(message);
-                    ws.send(jsonString);
-                    log(`Sent 'join' event: ${jsonString}`);
-                } else {
-                    log('Cannot send message. WebSocket is not open.', true);
-                }
-            }
-
-            // Hàm gửi tin nhắn "join"
             function sendMessageEvent() {
                 if (ws && ws.readyState === WebSocket.OPEN) {
-                    const room = joinInput.value;
-                    if (!room) {
-                        log('Please enter a room to join.', true);
+                    const eventName = eventInput.value.trim();
+                    if (!eventName) {
+                        log('Please enter an event name.', true);
                         return;
                     }
 
-                    const msg = messageInput.value;
-                    if (!msg) {
-                        log('Please enter a message to send.', true);
-                        return;
-                    }
+                    const payload = payloadInput.value;
 
-                    // Định dạng JSON phải khớp với cấu trúc mà server Go mong đợi
                     const message = {
-                        event: 'message', // Tên event được server đăng ký
-                        payload: {
-                            to: room.trim(),
-                            mess: msg.trim(),
-                        },
+                        event: eventName,
+                        payload: payload,
                     };
 
                     const jsonString = JSON.stringify(message);
                     ws.send(jsonString);
-                    log(`Sent 'message' event: ${jsonString}`);
+                    log(`Sent event: ${jsonString}`);
                 } else {
                     log('Cannot send message. WebSocket is not open.', true);
                 }
             }
 
-            // Hàm ngắt kết nối
             function disconnect() {
                 if (ws) {
                     ws.close(1000, 'Client initiated disconnect');
