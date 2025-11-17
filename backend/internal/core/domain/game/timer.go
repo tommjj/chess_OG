@@ -24,8 +24,7 @@ type timer struct {
 
 	duration time.Duration // time of game
 
-	hashEnd bool // set when time out
-	mx      sync.Mutex
+	mx sync.Mutex
 }
 
 // NewTimer creates a new Timer with the specified initial time for each player.
@@ -126,7 +125,7 @@ func (t *timer) GetWhiteDuration() time.Duration {
 
 	if t.isRunning() && t.CurrentTurn == White {
 		elapsed := time.Since(t.LastUpdate)
-		return t.WhiteTime + elapsed
+		return t.WhiteTime - elapsed
 	}
 
 	return t.WhiteTime
@@ -138,7 +137,7 @@ func (t *timer) GetBlackDuration() time.Duration {
 
 	if t.isRunning() && t.CurrentTurn == Black {
 		elapsed := time.Since(t.LastUpdate)
-		return t.BlackTime + elapsed
+		return t.BlackTime - elapsed
 	}
 
 	return t.BlackTime
@@ -178,8 +177,6 @@ func (t *timer) SwitchTurn() bool {
 	if t.BlackTime == 0 || t.WhiteTime == 0 { // timeout
 		t.LastUpdate = NullTime
 		return false
-	} else { // reset time out
-		t.setTimeout()
 	}
 
 	if t.CurrentTurn == White {
@@ -189,6 +186,8 @@ func (t *timer) SwitchTurn() bool {
 	}
 
 	t.CurrentTurn = t.CurrentTurn.Opposite()
+
+	t.setTimeout()
 	return true
 }
 
