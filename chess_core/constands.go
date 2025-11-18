@@ -370,6 +370,7 @@ const (
 	ResultOngoing      GameStatus = "Result Ongoing"
 	ResultCheckmate    GameStatus = "Result Checkmate"
 	ResultStalemate    GameStatus = "Result Stalemate"
+	ResultDrawBy50Move GameStatus = "Result Draw By 50 Move"
 	ResultDrawBy75Move GameStatus = "Result Draw By 75 Move"
 
 	ResultInsufficientMaterial GameStatus = "Result Insufficient Material"

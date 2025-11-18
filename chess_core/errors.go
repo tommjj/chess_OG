@@ -28,6 +28,8 @@ var (
 	ErrInvalidPromotion = fmt.Errorf("%w: invalid promotion", ErrInvalidMove)
 	ErrMoveIntoCheck    = fmt.Errorf("%w: move into check", ErrInvalidMove)
 	ErrMoveOutOfTurn    = fmt.Errorf("%w: move out of turn", ErrInvalidMove)
+
+	ErrInvalidUndoMoves = errors.New("invalid undo moves")
 )
 
 func wrapError(err error, message string) error {

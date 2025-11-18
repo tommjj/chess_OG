@@ -29,6 +29,7 @@ type GameState struct {
 func NewGame() *GameState {
 	return &GameState{
 		BitBoards: &BitBoards{},
+		state:     ResultOngoing,
 		history:   make(History, 50),
 	}
 }
@@ -230,6 +231,10 @@ func (gs *GameState) ToFEN() string {
 	)
 }
 
+func (gs *GameState) StartFen() string {
+	return gs.startFen
+}
+
 func (gs *GameState) createMove(from, to Square, promo PieceType) (Move, error) {
 	pieceToMove := gs.BitBoards.GetPieceAt(from)
 	if pieceToMove == Empty {
@@ -407,7 +412,6 @@ func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (Gam
 	}
 
 	// handle validate move
-
 	if gs.SideToMove != side {
 		return "", ErrMoveOutOfTurn
 	}
@@ -489,6 +493,13 @@ func (gs *GameState) MakeMove(side Color, from, to Square, promo PieceType) (Gam
 	return gs.state, nil
 }
 
+func (gs *GameState) CanDrawBy50Move() bool {
+	gs.mx.Lock()
+	defer gs.mx.Unlock()
+
+	return gs.HalfmoveClock >= 100
+}
+
 func (gs *GameState) MakeDrawBy50Move() error {
 	gs.mx.Lock()
 	defer gs.mx.Unlock()
@@ -500,12 +511,12 @@ func (gs *GameState) MakeDrawBy50Move() error {
 
 	// chỉ có thể yêu cầu hòa khi ván chưa kết thúc
 	switch gs.state {
-	case ResultCheckmate, ResultStalemate, ResultDrawBy75Move, ResultInsufficientMaterial:
+	case ResultCheckmate, ResultStalemate, ResultDrawBy75Move, ResultDrawBy50Move, ResultInsufficientMaterial:
 		return ErrMatchEnd
 	}
 
 	// đặt trạng thái hòa
-	gs.state = ResultDrawBy75Move
+	gs.state = ResultDrawBy50Move
 	return nil
 }
 
@@ -666,6 +677,103 @@ func (gs *GameState) State() GameStatus {
 
 func (gs *GameState) computeZobristHash() uint64 {
 	return computeZobristHash(gs.BitBoards, gs.SideToMove, gs.EnPassantSquare, gs.CastlingRights)
+}
+
+// resetBoardToInitialState this function resets the board state and does not reset the history
+func (gs *GameState) resetBoardToInitialState() {
+	var sideToMove string
+	var castling string
+	var enPassant string
+	var halfmove int
+	var fullmove int
+
+	gs.BitBoards.FromFEN(gs.startFen)
+	_, lastFen, _ := strings.Cut(gs.startFen, " ")
+
+	fmt.Sscanf(lastFen, "%s %s %s %d %d", &sideToMove, &castling, &enPassant, &halfmove, &fullmove)
+
+	switch sideToMove {
+	case "w":
+		gs.SideToMove = White
+	case "b":
+		gs.SideToMove = Black
+	}
+
+	gs.CastlingRights = 0
+	for _, c := range castling {
+		switch c {
+		case 'K':
+			gs.CastlingRights |= 1
+		case 'Q':
+			gs.CastlingRights |= 2
+		case 'k':
+			gs.CastlingRights |= 4
+		case 'q':
+			gs.CastlingRights |= 8
+		case '-':
+			// no castling rights
+		}
+	}
+
+	if enPassant == "-" {
+		gs.EnPassantSquare = Square(NoEnPassant)
+	} else {
+		file := enPassant[0] - 'a'
+		rank := enPassant[1] - '1'
+		gs.EnPassantSquare = Square(rank*8 + file)
+	}
+
+	gs.HalfmoveClock = halfmove
+	gs.FullmoveNumber = fullmove
+}
+
+// Undo
+func (gs *GameState) Undo(moves int) error {
+	gs.mx.Lock()
+	defer gs.mx.Unlock()
+
+	if moves > len(gs.history) || moves <= 0 {
+		return ErrInvalidUndoMoves
+	}
+
+	gs.history = gs.history[:len(gs.history)-moves]
+	gs.resetBoardToInitialState()
+
+	for _, history := range gs.history {
+		move := history.Move
+		side := move.Side()
+
+		makeUnsafeMove(gs.BitBoards, move)
+		// set BitBoards
+		if side == Black {
+			gs.FullmoveNumber += 1
+		}
+		gs.SideToMove = side.Opposite()
+
+		// CastlingRights update
+		gs.CastlingRights &= CastlingRights[move.From()]
+		gs.CastlingRights &= CastlingRights[move.To()]
+
+		// HalfmoveClock update
+		if move.IsCapture() || ASCIIPieces[move.Piece()].Type() == Pawn {
+			gs.HalfmoveClock = 0
+		} else {
+			gs.HalfmoveClock++
+		}
+
+		// EnPassantSquare update
+		if move.IsDoublePush() {
+			if side == White {
+				gs.EnPassantSquare = Square(move.To()) - 8
+			} else {
+				gs.EnPassantSquare = Square(move.To()) + 8
+			}
+		} else {
+			gs.EnPassantSquare = NoEnPassant
+		}
+	}
+
+	return nil
 }
 
 // kiểm tra xem 2 tượng có cùng màu ô không
