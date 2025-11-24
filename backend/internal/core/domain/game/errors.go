@@ -29,6 +29,7 @@ var (
 	ErrMoveIntoCheck    = chess.ErrMoveIntoCheck
 	ErrMoveOutOfTurn    = chess.ErrMoveOutOfTurn
 
+	ErrTimeout        = errors.New("error timeout")
 	ErrGamePaused     = errors.New("error game paused")
 	ErrGameNotStarted = errors.New("error game not started")
 )

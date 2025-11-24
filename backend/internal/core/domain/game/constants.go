@@ -26,6 +26,7 @@ const (
 	ResultOngoing              = GameStatus(chess.ResultOngoing)
 	ResultCheckmate            = GameStatus(chess.ResultCheckmate)
 	ResultStalemate            = GameStatus(chess.ResultStalemate)
+	ResultDrawBy50Move         = GameStatus(chess.ResultDrawBy50Move)
 	ResultDrawBy75Move         = GameStatus(chess.ResultDrawBy75Move)
 	ResultInsufficientMaterial = GameStatus(chess.ResultInsufficientMaterial)
 	ResultThreefoldRepetition  = GameStatus(chess.ResultThreefoldRepetition)
@@ -35,8 +36,7 @@ const (
 	// player
 	ResultResignation     = GameStatus("Result Resignation")       // Thua do đầu hàng (Người chơi tự nguyện Quit/Resign)
 	ResultDrawByAgreement = GameStatus("Result Draw By Agreement") // Hòa do đồng thuận giữa hai người chơi
-	ResultDrawBy50Move    = GameStatus("Result Draw By 50 Move")
-	ResultForfeit         = GameStatus("Result Forfeit") // Thua do mất kết nối/hết thời gian kết nối lại (Walkover)
+	ResultForfeit         = GameStatus("Result Forfeit")           // Thua do mất kết nối/hết thời gian kết nối lại (Walkover)
 
 )
 

@@ -48,7 +48,17 @@ func (t *timer) HasStarted() bool {
 	return t.duration == 0 && t.LastUpdate.Equal(NullTime)
 }
 
-func (t *timer) isStopped() bool { return t.LastUpdate.Equal(NullTime) }
+func (t *timer) isStopped() bool {
+	if t.LastUpdate.Equal(NullTime) {
+		return true
+	}
+	elapsed := time.Since(t.LastUpdate)
+	if t.CurrentTurn == White {
+		return t.WhiteTime-elapsed <= 0
+	} else {
+		return t.BlackTime-elapsed <= 0
+	}
+}
 func (t *timer) IsStopped() bool {
 	t.mx.Lock()
 	defer t.mx.Unlock()
@@ -56,7 +66,17 @@ func (t *timer) IsStopped() bool {
 	return t.isStopped()
 }
 
-func (t *timer) isRunning() bool { return t.LastUpdate != NullTime }
+func (t *timer) isRunning() bool {
+	if t.LastUpdate.Equal(NullTime) {
+		return false
+	}
+	elapsed := time.Since(t.LastUpdate)
+	if t.CurrentTurn == White {
+		return t.WhiteTime-elapsed > 0
+	} else {
+		return t.BlackTime-elapsed > 0
+	}
+}
 func (t *timer) IsRunning() bool {
 	t.mx.Lock()
 	defer t.mx.Unlock()
@@ -119,47 +139,47 @@ func (t *timer) Start() bool {
 	return true
 }
 
-func (t *timer) GetWhiteDuration() time.Duration {
+func (t *timer) WhiteRemaining() time.Duration {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 
-	if t.isRunning() && t.CurrentTurn == White {
+	if t.LastUpdate != NullTime && t.CurrentTurn == White {
 		elapsed := time.Since(t.LastUpdate)
-		return t.WhiteTime - elapsed
+		return max(t.WhiteTime-elapsed, 0)
 	}
 
 	return t.WhiteTime
 }
 
-func (t *timer) GetBlackDuration() time.Duration {
+func (t *timer) BlackRemaining() time.Duration {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 
-	if t.isRunning() && t.CurrentTurn == Black {
+	if t.LastUpdate != NullTime && t.CurrentTurn == Black {
 		elapsed := time.Since(t.LastUpdate)
-		return t.BlackTime - elapsed
+		return max(t.BlackTime - elapsed)
 	}
 
 	return t.BlackTime
 }
 
-func (t *timer) GetTimes(color Color) time.Duration {
+func (t *timer) Remaining(color Color) time.Duration {
 	switch color {
 	case Black:
-		return t.GetBlackDuration()
+		return t.BlackRemaining()
 	case White:
-		return t.GetWhiteDuration()
+		return t.WhiteRemaining()
 	default:
 		return -1
 	}
 }
 
-func (t *timer) GetCurrentPlayerTime() time.Duration {
+func (t *timer) CurrentPlayerRemaining() time.Duration {
 	switch t.CurrentTurn {
 	case Black:
-		return t.GetBlackDuration()
+		return t.BlackRemaining()
 	case White:
-		return t.GetWhiteDuration()
+		return t.WhiteRemaining()
 	default:
 		return -1
 	}
@@ -219,7 +239,7 @@ func (t *timer) GetDuration() time.Duration {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 
-	if t.isRunning() {
+	if t.LastUpdate != NullTime {
 		elapsed := time.Since(t.LastUpdate)
 		return t.duration + elapsed
 	}
