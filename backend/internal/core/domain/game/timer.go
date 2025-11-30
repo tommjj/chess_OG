@@ -29,6 +29,10 @@ type timer struct {
 
 // NewTimer creates a new Timer with the specified initial time for each player.
 // Writes initial time to both players' clocks
+//
+//	increaseDuration: increment added after each move
+//	turn: color of the player to start
+//	timeoutCallback: callback function when a player's time runs out
 func NewTimer(initialTimeSeconds int, increaseDuration time.Duration, turn Color, timeoutCallback func(timeoutColor Color)) *timer {
 	return &timer{
 		InitialTimeSeconds: initialTimeSeconds,

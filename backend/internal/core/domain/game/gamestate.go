@@ -1,7 +1,6 @@
 package game
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -72,10 +71,10 @@ type GameState struct {
 
 // NewGame creates a new GameState instance. you need call Start() to start the game timer.
 //
-// fen: initial fen string
-// timeSeconds: time per side in seconds
-// endCallBack: callback function when game ends
-func NewGame(ctx context.Context, fen string, timeSeconds int, endCallBack func(result GameResult)) (*GameState, error) {
+//	fen: initial fen string
+//	timeSeconds: time per side in seconds
+//	endCallBack: callback function when game ends
+func NewGame(fen string, timeSeconds int, endCallBack func(result GameResult)) (*GameState, error) {
 	board := chess.NewGame()
 	err := board.FromFEN(fen)
 	if err != nil {

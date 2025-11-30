@@ -7,11 +7,12 @@ import (
 	"io/fs"
 )
 
-//go:embed static/**
+//go:embed static/** client/**
 var embeddedFS embed.FS
 
 var (
 	StaticFS = mustSub("static")
+	ClientFS = mustSub("client")
 )
 
 func mustSub(path string) fs.FS {
