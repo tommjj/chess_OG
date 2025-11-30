@@ -6,6 +6,17 @@ export interface WSEventDefaults {
     $connection: null;
     $disconnection: null;
     $error: { message: string; details?: any };
+    $message: {
+        event: string;
+        payload: any;
+    }; // raw message
+}
+
+export enum WSDefaultsEvents {
+    Connection = '$connection',
+    Disconnection = '$disconnection',
+    Error = '$error',
+    Message = '$message', // all raw messages
 }
 
 /**
@@ -98,6 +109,11 @@ class WSClient<
      * connect - Establish the WebSocket connection
      */
     connect() {
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            console.warn('WebSocket is already connected.');
+            return;
+        }
+
         this.socket = new WebSocket(this.url);
 
         this.socket.onopen = () => {
@@ -110,14 +126,19 @@ class WSClient<
             try {
                 const msg = JSON.parse(event.data);
 
-                if (!msg.event) return;
+                if (!msg.event) throw new Error('Missing event field');
                 const ev = msg.event;
+
+                this.events
+                    .get('$message')
+                    ?.forEach((_, handler) => handler(msg)); // Emit raw message event
 
                 this.events
                     .get(ev)
                     ?.forEach((_, handler) => handler(msg.payload));
             } catch (err) {
                 console.warn('Invalid WS message:', event.data);
+                this.disconnect(); // Disconnect on invalid message (protocol violation)
             }
         };
 
@@ -157,6 +178,18 @@ class WSClient<
             this.socket.close();
             this.socket = null;
         }
+    }
+
+    isConnected() {
+        return this.socket?.readyState === WebSocket.OPEN;
+    }
+
+    isDisconnected() {
+        return (
+            this.socket?.readyState === WebSocket.CLOSED ||
+            this.socket?.readyState === WebSocket.CLOSING ||
+            this.socket === null
+        );
     }
 }
 
