@@ -41,8 +41,14 @@ func WithRecovery() HTTPOptionFunc {
 func WithCORS(allowedOrigins []string, allowHeaders []string, allowCredentials bool) HTTPOptionFunc {
 	return func(r gin.IRouter) error {
 		CORSConfig := cors.DefaultConfig()
-		CORSConfig.AllowOrigins = allowedOrigins
+
 		CORSConfig.AllowCredentials = allowCredentials
+		if allowCredentials { // when credentials are allowed, specific origins must be set
+			CORSConfig.AllowOrigins = allowedOrigins
+		} else if len(allowedOrigins) == 0 { // when no origins are specified and credentials are not allowed, allow all origins
+			CORSConfig.AllowAllOrigins = true
+		}
+
 		for _, h := range allowHeaders {
 			CORSConfig.AddAllowHeaders(h)
 		}
