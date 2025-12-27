@@ -32,4 +32,7 @@ var (
 	ErrTimeout        = errors.New("error timeout")
 	ErrGamePaused     = errors.New("error game paused")
 	ErrGameNotStarted = errors.New("error game not started")
+
+	// Create game errors
+	ErrInvalidGameMode = errors.New("error invalid game mode")
 )

@@ -45,6 +45,7 @@ func NewTimer(initialTimeSeconds int, increaseDuration time.Duration, turn Color
 	}
 }
 
+// HasStarted checks if the timer has started.
 func (t *timer) HasStarted() bool {
 	t.mx.Lock()
 	defer t.mx.Unlock()
@@ -52,6 +53,7 @@ func (t *timer) HasStarted() bool {
 	return t.duration == 0 && t.LastUpdate.Equal(NullTime)
 }
 
+// isStopped checks if the timer is stopped.
 func (t *timer) isStopped() bool {
 	if t.LastUpdate.Equal(NullTime) {
 		return true
@@ -63,6 +65,8 @@ func (t *timer) isStopped() bool {
 		return t.BlackTime-elapsed <= 0
 	}
 }
+
+// IsStopped checks if the timer is stopped.
 func (t *timer) IsStopped() bool {
 	t.mx.Lock()
 	defer t.mx.Unlock()
@@ -70,6 +74,7 @@ func (t *timer) IsStopped() bool {
 	return t.isStopped()
 }
 
+// isRunning checks if the timer is running.
 func (t *timer) isRunning() bool {
 	if t.LastUpdate.Equal(NullTime) {
 		return false
@@ -81,6 +86,8 @@ func (t *timer) isRunning() bool {
 		return t.BlackTime-elapsed > 0
 	}
 }
+
+// IsRunning checks if the timer is running.
 func (t *timer) IsRunning() bool {
 	t.mx.Lock()
 	defer t.mx.Unlock()
@@ -88,6 +95,7 @@ func (t *timer) IsRunning() bool {
 	return t.isRunning()
 }
 
+// updateTime updates the remaining time for both players based on the elapsed time since the last update.
 func (t *timer) updateTime() {
 	if t.LastUpdate.Equal(NullTime) {
 		return
@@ -111,6 +119,7 @@ func (t *timer) updateTime() {
 	t.LastUpdate = now
 }
 
+// Stop the game timer. Returns true if the timer was stopped, false if it was already stopped.
 func (t *timer) Stop() bool {
 	t.mx.Lock()
 	defer t.mx.Unlock()
@@ -130,6 +139,7 @@ func (t *timer) Stop() bool {
 	return true
 }
 
+// Start the game timer. Returns true if the timer was started, false if it was already started.
 func (t *timer) Start() bool {
 	t.mx.Lock()
 	defer t.mx.Unlock()
@@ -143,6 +153,7 @@ func (t *timer) Start() bool {
 	return true
 }
 
+// WhiteRemaining returns the remaining time for White.
 func (t *timer) WhiteRemaining() time.Duration {
 	t.mx.Lock()
 	defer t.mx.Unlock()
@@ -155,6 +166,7 @@ func (t *timer) WhiteRemaining() time.Duration {
 	return t.WhiteTime
 }
 
+// BlackRemaining returns the remaining time for Black.
 func (t *timer) BlackRemaining() time.Duration {
 	t.mx.Lock()
 	defer t.mx.Unlock()
@@ -167,6 +179,7 @@ func (t *timer) BlackRemaining() time.Duration {
 	return t.BlackTime
 }
 
+// Remaining returns the remaining time for the specified color.
 func (t *timer) Remaining(color Color) time.Duration {
 	switch color {
 	case Black:
@@ -178,6 +191,7 @@ func (t *timer) Remaining(color Color) time.Duration {
 	}
 }
 
+// CurrentPlayerRemaining returns the remaining time for the current player.
 func (t *timer) CurrentPlayerRemaining() time.Duration {
 	switch t.CurrentTurn {
 	case Black:
@@ -189,6 +203,7 @@ func (t *timer) CurrentPlayerRemaining() time.Duration {
 	}
 }
 
+// SwitchTurn switches the turn to the other player and adds increment to the player's clock.
 func (t *timer) SwitchTurn() bool {
 	t.mx.Lock()
 	defer t.mx.Unlock()
@@ -215,6 +230,7 @@ func (t *timer) SwitchTurn() bool {
 	return true
 }
 
+// HasFlagged checks if any player has flagged (run out of time).
 func (t *timer) HasFlagged() bool {
 	t.mx.Lock()
 	defer t.mx.Unlock()
@@ -231,6 +247,7 @@ func (t *timer) HasFlagged() bool {
 	}
 }
 
+// GetWinnerOnFlag returns the color of the player who flagged, if any.
 func (t *timer) GetWinnerOnFlag() (Color, bool) {
 	if t.HasFlagged() {
 		return t.CurrentTurn, true

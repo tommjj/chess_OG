@@ -73,8 +73,9 @@ type GameState struct {
 //
 //	fen: initial fen string
 //	timeSeconds: time per side in seconds
+//	increaseDuration: time to add to the clock after each move
 //	endCallBack: callback function when game ends
-func NewGame(fen string, timeSeconds int, endCallBack func(result GameResult)) (*GameState, error) {
+func NewGame(fen string, timeSeconds int, increaseDuration time.Duration, endCallBack func(result GameResult)) (*GameState, error) {
 	board := chess.NewGame()
 	err := board.FromFEN(fen)
 	if err != nil {
@@ -89,7 +90,7 @@ func NewGame(fen string, timeSeconds int, endCallBack func(result GameResult)) (
 		endCallBack: endCallBack,
 	}
 
-	s.timer = NewTimer(timeSeconds, time.Second, board.SideToMove, s.handleTimeout)
+	s.timer = NewTimer(timeSeconds, increaseDuration, board.SideToMove, s.handleTimeout)
 
 	return s, nil
 }
