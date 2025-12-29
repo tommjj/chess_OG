@@ -20,7 +20,7 @@ func main() {
 
 	e.Register("new", func(ctx *ws.Context) {
 		var err error
-		state, err = game.NewGame("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 300000, func(result game.GameResult) {
+		state, err = game.BuildGameState(game.ModeBt2m1s, func(result game.GameResult) {
 			fmt.Println("Game ended with result:", result)
 		})
 		if err != nil {
