@@ -38,6 +38,7 @@ type LogConfig struct {
 // ZapLogger is a logger implementation using zap
 type ZapLogger struct {
 	logger *zap.Logger
+	level  ports.LogLevel
 }
 
 // Sync flushes any buffered log entries
@@ -61,7 +62,7 @@ func NewZapLogger(conf LogConfig) (*ZapLogger, error) {
 
 	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 
-	return &ZapLogger{logger: logger}, nil
+	return &ZapLogger{logger: logger, level: conf.Level}, nil
 }
 
 // convertFields converts ports.Field to zap.Field
@@ -99,8 +100,12 @@ func (z *ZapLogger) Fatal(message string, fields ...ports.Field) {
 
 func (z *ZapLogger) Log(level ports.LogLevel, message string, fields ...ports.Field) {
 	zapLevel, ok := logLevels[level]
-	if !ok {
-		zapLevel = zapcore.InfoLevel
+	if !ok { // default to ErrorLevel if invalid level is provided
+		zapLevel = zapcore.ErrorLevel
 	}
 	z.logger.Log(zapLevel, message, convertFields(fields...)...)
+}
+
+func (z *ZapLogger) Level() ports.LogLevel {
+	return z.level
 }

@@ -16,20 +16,40 @@ func NewLoggerFmtWrapper(logger ports.LoggerPort) *LoggerFmtWrapper {
 	return &LoggerFmtWrapper{logger: logger}
 }
 
+func (l *LoggerFmtWrapper) Level() ports.LogLevel {
+	return l.logger.Level()
+}
+
+func (l *LoggerFmtWrapper) CanLog(messageLevel ports.LogLevel) bool {
+	return ports.AllowLog(l.Level(), messageLevel)
+}
+
 // Infof logs an informational message with formatting.
 func (l *LoggerFmtWrapper) Infof(format string, args ...any) {
+	if !l.CanLog(ports.InfoLevel) {
+		return
+	}
+
 	message := fmt.Sprintf(format, args...)
 	l.logger.Info(message)
 }
 
 // Debugf logs a debug message with formatting.
 func (l *LoggerFmtWrapper) Debugf(format string, args ...any) {
+	if !l.CanLog(ports.DebugLevel) {
+		return
+	}
+
 	message := fmt.Sprintf(format, args...)
 	l.logger.Debug(message)
 }
 
 // Warnf logs a warning message with formatting.
 func (l *LoggerFmtWrapper) Warnf(format string, args ...any) {
+	if !l.CanLog(ports.DebugLevel) {
+		return
+	}
+
 	message := fmt.Sprintf(format, args...)
 	l.logger.Warn(message)
 }
@@ -42,12 +62,19 @@ func (l *LoggerFmtWrapper) Errorf(format string, args ...any) {
 
 // Fatalf logs a fatal message with formatting and terminates the application.
 func (l *LoggerFmtWrapper) Fatalf(format string, args ...any) {
+	if !l.CanLog(ports.DebugLevel) {
+		return
+	}
 	message := fmt.Sprintf(format, args...)
 	l.logger.Fatal(message)
 }
 
 // Logf logs a message at the specified log level with formatting.
 func (l *LoggerFmtWrapper) Logf(level ports.LogLevel, format string, args ...any) {
+	if !l.CanLog(level) {
+		return
+	}
+
 	message := fmt.Sprintf(format, args...)
 	l.logger.Log(level, message)
 }

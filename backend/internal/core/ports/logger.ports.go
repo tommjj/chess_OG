@@ -15,6 +15,11 @@ const (
 	FatalLevel
 )
 
+// AllowLog determines if a message at messageLevel should be logged
+func AllowLog(currentLevel, messageLevel LogLevel) bool {
+	return messageLevel >= currentLevel
+}
+
 // LoggerPort defines the interface for logging functionalities
 type LoggerPort interface {
 	// Info logs an informational message with optional fields
@@ -28,5 +33,8 @@ type LoggerPort interface {
 	// Fatal logs a fatal message with optional fields and terminates the application
 	Fatal(message string, fields ...Field)
 	// Log logs a message at the specified log level with optional fields
+	// Defaults to ErrorLevel if an invalid level is provided
 	Log(level LogLevel, message string, fields ...Field)
+	// Level returns the current log level
+	Level() LogLevel
 }
