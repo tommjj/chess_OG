@@ -8,6 +8,11 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+type Enum interface {
+	Values() []string
+	Name() string
+}
+
 // createEnumType creates an enum type in the database.
 func createEnumType(db *gorm.DB, name string, values []string) error {
 	var quotedValues []string
@@ -36,6 +41,18 @@ func createEnumType(db *gorm.DB, name string, values []string) error {
 func WithEnumType(name string, values []string) DBOptionFunc {
 	return func(db *gorm.DB) error {
 		return createEnumType(db, name, values)
+	}
+}
+
+// WithEnum is a helper function to create enum types if they don't exist.
+func WithEnum(enums ...Enum) DBOptionFunc {
+	return func(db *gorm.DB) error {
+		for _, enum := range enums {
+			if err := createEnumType(db, enum.Name(), enum.Values()); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 }
 
